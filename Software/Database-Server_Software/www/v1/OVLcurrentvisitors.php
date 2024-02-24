@@ -90,23 +90,27 @@ die;
 function makeDiv($visitID, $nameFirst, $nameLast) {
     
     $div = "<div class='visitor'>"
+        . "<a id='reprintbadge' href='OVLreprintbadge.php?vid=" . $visitID . "'>"
         . $nameFirst . " "
         . $nameLast . " "
-        . makeCheckoutLink($visitID) . "&nbsp;&nbsp;&nbsp;"
-        . makeNewBadgeLink($visitID)
-        . "</div>";
+        . "</a>"
+        . "&nbsp;&nbsp;&nbsp;"
+        . makeCheckoutLink($visitID)
+        . "</div>\r\n";
     return $div;
 }
 
 // make a checkout link
 function makeCheckoutLink($visitID) {
-    $link = "<a href='OVLcheckinout.php?vid=" . $visitID . "' target='_blank'>Check Out</a>";
+    $link = "<a href='OVLcheckinout.php?vid=" . $visitID . "'>"
+        . "<img src='redx.png' alt='Checkout'> "
+        . "</a>";
     return $link;
 }
 
 // make a new badge link
 function makeNewBadgeLink($visitID) {
-    $link = "<a href='OVLreprintbadge.php?vid=" . $visitID . "' target='_blank'>Reprint Badge</a>";
+    $link = "<a href='OVLreprintbadge.php?vid=" . $visitID . "'>Reprint Badge</a>";
     return $link;
 }
 

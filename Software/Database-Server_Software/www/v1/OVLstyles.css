@@ -46,6 +46,11 @@ div.extraPersonField{
     margin-top:20px;
     float:left;
 }
+div.visitor{
+    margin-top:20px;
+    width: 200px;
+    float:left;
+}
 input {
     font-size: 16px;
 }

@@ -1,4 +1,11 @@
 #!/bin/bash
+#-------------------------------------------------
+# Get the CPU architecture (must be rasbian).
+# The cpu architecture changes over time, and the version
+# of Go will change over time.  This may need updating
+# in the future.
+#-------------------------------------------------
+ARCH=$(uname -m)
 #--------------------------------------------------
 # Install GO
 #-------------------------------------------------
@@ -9,9 +16,16 @@ if ! type "go" > /dev/null; then
   set -e 
   mkdir $HOME/src
   cd $HOME/src
-  wget https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz
-  #wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
-  sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
+  if  [[ "$ARCH" == aarch64* ] || [ "$ARCH" == arm64* ]]; then
+    wget "https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz"
+    sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
+  elif  [[ "$ARCH" == armv* ]]; then
+    wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
+    sudo tar -c /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
+  else
+    echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
+    exit 3
+  fi
   #rm go1.21.6.linux-armv6l.tar.gz
   cd
   if [[ ":$PATH:" == *":/usr/local/go/bin:"* ]]; then

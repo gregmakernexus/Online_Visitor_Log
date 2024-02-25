@@ -87,14 +87,14 @@ func (c *labelClient) dbRead(url string) ([]visitor, error) {
 }
 func (c *labelClient) print(info visitor) error {
 	var temp string = c.labelTemplate
-        // Get the date right now and update the label
+    // Get the date right now and update the label
 	t := time.Now()
-        nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()],t.Day(), t.Year())
-        temp = strings.Replace(temp, "${Date}", nowDate, -1)
-        // loop through each field and update the label
+    nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()],t.Day(), t.Year())
+    temp = strings.Replace(temp, "${Date}", nowDate, -1)
+    // loop through each field and update the label
 	for key, data := range info {
 		log.Println("key:", key, " data:", data)
-          	dataType := fmt.Sprintf("%T", data)
+        dataType := fmt.Sprintf("%T", data)
 		switch dataType {
 		case "string":
 			temp = strings.Replace(temp, "${"+key+"}", data.(string), -1)
@@ -122,37 +122,65 @@ func (c *labelClient) print(info visitor) error {
         return nil
 }
 
-func main() {
-        // init command line flags
-        flag.Parse()
-        //  Create the label client
-        c := newLabelClient()
-	fmt.Println("Print Server Initialized.  Hit control-c to exit.")
-        fmt.Println("Label Print Delay is:",*printDelay)
+func (c *labelClient) printTestPage() error {
+	var temp string = c.labelTemplate
+    // Get the date right now and update the label
+	t := time.Now()
+    nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()],t.Day(), t.Year())
+    temp = strings.Replace(temp, "${Date}", nowDate, -1)
+    temp = strings.Replace(temp, "${nameFirst}", "WELCOME TO MAKERNEXUS", -1)
+	temp = strings.Replace(temp, "${nameLast}", "", -1)	
+	temp = strings.Replace(temp, "Visitor", "Test Page", -1)	
+    // cd to the Mylabel directory so we can write files
+	if err := os.Chdir(c.labelDir); err != nil {
+		log.Fatal("Label directory does not exist.")
+	}
+    // delete and write the temp.glables file
+        os.Remove("temp.glabels")
+ 	if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
+		log.Fatalf("Error writing label file error:%v\n", err)
+	}
+    // print the label
+	cmd := exec.Command("glabels-batch-qt", "temp.glabels")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("cmd.Run() failed error:%v\n", err)
+	}
 
+	fmt.Printf("combined out:\n%s\n", string(out))
+        return nil
+}
+func main() {
+    // init command line flags
+    flag.Parse()
+    //  Create the label client
+    c := newLabelClient()
+	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
+    fmt.Println("Label Print Delay is:",*printDelay)
+	c.printTestPage()
 	var err error
 	var labels []visitor
 	for i := 1; ;i++ {
-                // read databse to see if there are labels to print
+        // read databse to see if there are labels to print
 		if labels, err = c.dbRead(*dbURL); err != nil {
 			return
 		}
-                // if there are no labels then print a dot and continue
+        // if there are no labels then print a dot and continue
 		if len(labels) == 0 {
 			fmt.Printf("%v", ".")
 			time.Sleep(time.Second)
                         continue
 		}
 		for _, label := range labels {
-	                c.print(label)
+	        c.print(label)
 			if *printDelay == -1 {
-                          fmt.Printf("Hit enter to print next label>")
-                          fmt.Scanln()
-		        } else {
-             		   fmt.Println("Label Print Delay is:",*printDelay)
-                            time.Sleep(time.Second*time.Duration(*printDelay))
-                        }
-                }
+                fmt.Printf("Hit enter to print next label>")
+                fmt.Scanln()
+		    } else {
+         	   fmt.Println("Label Print Delay is:",*printDelay)
+               time.Sleep(time.Second*time.Duration(*printDelay))
+            }
+        }
 
 	}
 }

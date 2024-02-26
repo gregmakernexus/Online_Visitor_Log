@@ -11,11 +11,9 @@ ARCH=$(uname -m)
 #-------------------------------------------------
 if ! type "go" > /dev/null; then
   set +e 
-  rm -rfd $HOME/src
   sudo rm -rf /usr/local/go  
   set -e 
-  mkdir $HOME/src
-  cd $HOME/src
+  cd "$HOME/Downloads"
   if  [[ "$ARCH" == aarch64* ] || [ "$ARCH" == arm64* ]]; then
     wget "https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz"
     sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
@@ -26,18 +24,17 @@ if ! type "go" > /dev/null; then
     echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
     exit 3
   fi
-  #rm go1.21.6.linux-armv6l.tar.gz
   cd
   if [[ ":$PATH:" == *":/usr/local/go/bin:"* ]]; then
     echo "GO is installed"
   else
-    echo "export PATH=$PATH:/usr/local/go/bin" >> .profile
+    echo "export PATH=$PATH:/usr/local/go/bin" >> .bashrc
     echo "GO was added to your path."
   fi
   if [[ "$GOPATH" != "$HOME/go" ]]; then
-    echo GOPATH=$HOME/go >> .profile
+    echo GOPATH=$HOME/go >> .bashrc
   fi
-  source ~/.profile
+  source ~/.bashrc
   go -v
 fi
 
@@ -60,27 +57,48 @@ fi
 # Create the application .bin directory to hold applications
 #---------------------------------------------------
 cd
-mkdir ~/.bin
+if [ ! -d "$HOME/.bin" ]; then
+	mkdir ~/.bin
+fi
 if [[ ":$PATH:" == *":$HOME/.bin:"* ]]; then
   echo ".bin is installed"
 else
-  echo "export PATH=$HOME/.bin:$PATH" >> .profile
+  echo "export PATH=$HOME/.bin:$PATH" >> .bashrc
   echo ".bin was added to your path."
 fi
-cd ~/.bin
-cp -f $HOME/Downloads/printserver.go printserver.go
+
+
+bash_path=$(dirname "$0")
+cd "$bash_path"
+if [ ! -f "printserver.go" ]; then
+   echo "printserver.go is not in the directory with install script"
+   exit 100
+fi
 go build printserver.go
+cd "$HOME/.bin"
+cp -f "$bash_path/printserver" printserver
 cd
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory
 #------------------------------------------------------
-mkdir ~/Mylabels
-cd ~/Mylabels
-cp -f $HOME/Downloads/maker_nexus_logo.png maker_nexus_logo.png  
-cp -f $HOME/Downloads/template.glabels template.glabels
+if [ ! -d "$HOME/Mylabels ]; then 
+	mkdir "$HOME/Mylabels"
+fi
+cd "$HOME/Mylabels"
+cp -f "$bash_path/maker_nexus_logo.png" maker_nexus_logo.png  
+cp -f "$bash_path/DYMO.glabels" DYMO.glabels
+cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
 #-----------------------------------------------------
 # Install dymo printer drivers
 #----------------------------------------------------
+if  [[ "$ARCH" == armv* ]]; then
+    wget https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=lpql800eus&os=10041&dlid=dlfp100534_000&flang=178&type3=10261
+    sudo dpkg -i ql800pdrv-2.1.4-0.armhf.deb
+    echo To verify cups installation,open chrome.  Go to: http://localhost:631/printers
+else
+    echo Brother Printer driver only works on 32-bit Rasbian
+    echo Skipping driver installation
+fi
 sudo apt-get -y update
 sudo apt-get -y install cups cups-client printer-driver-dymo
 #-----------------------------------------------------

@@ -135,7 +135,7 @@ func (c *labelClient) printTestPage() error {
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
 	temp = strings.Replace(temp, "${nameFirst}", "WELCOME TO MAKERNEXUS", -1)
 	temp = strings.Replace(temp, "${nameLast}", "", -1)
-	temp = strings.Replace(temp, "Visitor", "Test Page", -1)
+	temp = strings.Replace(temp, "Visitor", "Test Label", -1)
 	// cd to the Mylabel directory so we can write files
 	if err := os.Chdir(c.labelDir); err != nil {
 		log.Fatal("Label directory does not exist.")
@@ -156,7 +156,7 @@ func (c *labelClient) printTestPage() error {
 	return nil
 }
 
-func (c *labelClient) newFilter(filter string) (map[string]int, error) {
+func newFilter(filter string) (map[string]int, error) {
 	alpha := "abcdefghijklmnopqurstuvwxyz"
 	filter = strings.ReplaceAll(filter, " ", "")
 	filterSplit := strings.Split(filter, "-")
@@ -176,35 +176,53 @@ func (c *labelClient) newFilter(filter string) (map[string]int, error) {
 	low = temp
 
 	filterMap := make(map[string]int)
-	for i := low; i < high; i++ {
+	for i := low; i < high+1; i++ {
 		filterMap[string(alpha[i])] = 0
 	}
 	return filterMap, nil
 }
 
+func okToPrint(filterMap map[string]int, lastName string) bool {
+	firstChar := lastName[0:1]
+	if _, exists := filterMap[firstChar]; !exists {
+		fmt.Printf("skipping label.  lastName:%v filtermap:%v\n", lastName, filterMap)
+		return false
+	}
+	return true
+}	
 func main() {
 	// init command line flags
 	flag.Parse()
 	//  Create the label client
 	c := newLabelClient()
+	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
-	fmt.Println("Label Print Delay is:", *printDelay)
+	// fmt.Println("Label Print Delay is:", *printDelay)
+	// Print Test Page
 	c.printTestPage()
 
 	var err error
 	var labels []visitor
 	// Generate the filter for the last name.
 	var filterMap map[string]int
-	if filterMap, err = c.newFilter(*printFilter); err != nil {
+	if filterMap, err = newFilter(*printFilter); err != nil {
 		fmt.Printf("Error generating filter map:%v error:%v\n", filterMap, err)
+		log.Fatal(3)
 	}
 	if *test {
 		seed := time.Now().UTC().UnixNano()
     	n := name.NewNameGenerator(seed)
 		for i := 1; ; i++ {
 			randomName := n.Generate()
-			fmt.Println(randomName)
-			time.Sleep(time.Second)
+			n := strings.Split(randomName,"-")
+			label := make(visitor)
+			if okToPrint(filterMap,n[1]) {
+				label["nameLast"] = n[1]
+				label["nameFirst"] = n[0]
+				label["URL"] = "https://makernexus.org;laskdfjas;ldkfjas;ldfkjas;ldfkjaasdf"
+				c.print(label)
+			}	
+			time.Sleep(time.Second * time.Duration(*printDelay))
 		}
 	}
 	for i := 1; ; i++ {
@@ -220,13 +238,10 @@ func main() {
 		}
 		for _, label := range labels {
 			// Filter label prints by last name
-			lastNameChar := label["lastName"].(string)[0:1]
-			if _, exists := filterMap[lastNameChar]; !exists {
-				fmt.Printf("skipping label.  lastNameChar:%v filtermap:%v\n",
-					lastNameChar, filterMap)
-				continue
+			lastName := label["nameLast"].(string)
+			if okToPrint(filterMap, lastName) {
+				c.print(label)
 			}
-			c.print(label)
 			if *printDelay == -1 {
 				fmt.Printf("Hit enter to print next label>")
 				fmt.Scanln()
@@ -238,3 +253,4 @@ func main() {
 
 	}
 }
+

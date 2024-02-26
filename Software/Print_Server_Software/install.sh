@@ -91,7 +91,9 @@ cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
 #-----------------------------------------------------
 # Install dymo printer drivers
 #----------------------------------------------------
+cd "$HOME/Downloads"
 if  [[ "$ARCH" == armv* ]]; then
+    rm -rf ql800*
     wget https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=lpql800eus&os=10041&dlid=dlfp100534_000&flang=178&type3=10261
     sudo dpkg -i ql800pdrv-2.1.4-0.armhf.deb
     echo To verify cups installation,open chrome.  Go to: http://localhost:631/printers

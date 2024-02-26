@@ -14,9 +14,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	name "github.com/goombaio/namegenerator"
 )
 
 var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/testVisitorLabels.php", "Database Read URL")
+var test = flag.Bool("test", false, "Label test to print labels with random names")
 var printDelay = flag.Int("delay", 0, "Delay between print commands")
 var printFilter = flag.String("filter", "a-z", "Filter on last name. eg. a-f")
 var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
@@ -195,7 +198,15 @@ func main() {
 	if filterMap, err = c.newFilter(*printFilter); err != nil {
 		fmt.Printf("Error generating filter map:%v error:%v\n", filterMap, err)
 	}
-
+	if *test {
+		seed := time.Now().UTC().UnixNano()
+    	n := name.NewNameGenerator(seed)
+		for i := 1; ; i++ {
+			randomName := n.Generate()
+			fmt.Println(randomName)
+			time.Sleep(time.Second)
+		}
+	}
 	for i := 1; ; i++ {
 		// read databse to see if there are labels to print
 		if labels, err = c.dbRead(*dbURL); err != nil {

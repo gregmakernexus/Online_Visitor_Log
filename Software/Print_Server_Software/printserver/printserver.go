@@ -23,7 +23,7 @@ var test = flag.Bool("test", false, "Label test to print labels with random name
 var printDelay = flag.Int("delay", 0, "Delay between print commands")
 var printFilter = flag.String("filter", "a-z", "Filter on last name. eg. a-f")
 var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
-
+var n name.Generator
 type visitor map[string]any
 type visitorList struct {
 	Create string `json:"dateCreated"`
@@ -33,10 +33,11 @@ type visitorList struct {
 }
 
 type labelClient struct {
-	labelDir string
-	// labelPath     string
-	labelTemplate string
-	connection    *http.Client
+	labelDir            string
+	labelTemplate       string
+	printerModel        string
+	printerManufacturer string
+	connection          *http.Client
 }
 
 func newLabelClient() *labelClient {
@@ -51,11 +52,38 @@ func newLabelClient() *labelClient {
 	if err := os.Chdir(c.labelDir); err != nil {
 		log.Fatal("Label directory does not exist.")
 	}
-	labelByte, err = os.ReadFile("template.glabels")
+	// Find the CUPS printer
+	out, err := exec.Command("lpstat", "-a").CombinedOutput()
 	if err != nil {
-		log.Printf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
-		log.Fatalf("Store it at:%v\n", filepath.Join(c.labelDir, "template.glabels"))
-
+		log.Fatalf("exec.Command() failed error:%v\n", err)
+	}
+	lines := strings.Split(string(out),"\n")
+	if len(lines) == 0 {
+		log.Fatalf("No Printers Found")
+	}
+	loop: 
+	for _,line := range lines {
+	    tokens := strings.Split(line," ")
+	    if len(tokens) < 2 {
+		   continue
+		}
+		c.printerModel = strings.ToUpper(tokens[0]) 
+		switch {
+		case strings.Contains(c.printerModel,"QL"):
+			c.printerManufacturer = "BROTHER"
+			break loop
+		case strings.Contains(c.printerModel,"DYMO"):
+			c.printerManufacturer = "DYMO"
+			break loop
+		} // switch
+	} // for
+	if c.printerManufacturer == "" {
+		log.Fatalf("Label printer was not found\n%v\n",lines)
+	}
+	fmt.Printf("Using a %v printer.  Model:%v\n", c.printerManufacturer, c.printerModel)
+	labelByte, err = os.ReadFile(c.printerManufacturer+".glabels")
+	if err != nil {
+		log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
 	}
 	c.labelTemplate = string(labelByte)
 
@@ -117,13 +145,9 @@ func (c *labelClient) print(info visitor) error {
 		log.Fatalf("Error writing label file error:%v\n", err)
 	}
 	// print the label
-	cmd := exec.Command("glabels-batch-qt", "temp.glabels")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("cmd.Run() failed error:%v\n", err)
+	if out, err := exec.Command("glabels-batch-qt", "temp.glabels").CombinedOutput(); err != nil {
+		log.Fatalf("exec.Command failed error:%v\noutput:%v\n", err,out)
 	}
-
-	fmt.Printf("combined out:\n%s\n", string(out))
 	return nil
 }
 
@@ -146,18 +170,19 @@ func (c *labelClient) printTestPage() error {
 		log.Fatalf("Error writing label file error:%v\n", err)
 	}
 	// print the label
-	cmd := exec.Command("glabels-batch-qt", "temp.glabels")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("cmd.Run() failed error:%v\n", err)
+	if out, err := exec.Command("glabels-batch-qt", "temp.glabels").CombinedOutput(); err != nil {
+		log.Fatalf("cmd.Run() failed error:%v\n%v\n", err, out)
 	}
 
-	fmt.Printf("combined out:\n%s\n", string(out))
 	return nil
 }
 
 func newFilter(filter string) (map[string]int, error) {
+<<<<<<< HEAD
 	alpha := "abcdefghijklmnopqurstuvwxyz"
+=======
+	alpha := "abcdefghijklmnopqrstuvwxyz"
+>>>>>>> 6aae2c9 (Add detection of attached printer)
 	filter = strings.ReplaceAll(filter, " ", "")
 	filterSplit := strings.Split(filter, "-")
 	if len(filterSplit) != 2 && len(filterSplit[0]) != 1 && len(filterSplit[1]) != 1 {
@@ -174,7 +199,6 @@ func newFilter(filter string) (map[string]int, error) {
 	temp := min(low, high)
 	high = max(low, high)
 	low = temp
-
 	filterMap := make(map[string]int)
 	for i := low; i < high+1; i++ {
 		filterMap[string(alpha[i])] = 0
@@ -211,6 +235,7 @@ func main() {
 	}
 	if *test {
 		seed := time.Now().UTC().UnixNano()
+<<<<<<< HEAD
     	n := name.NewNameGenerator(seed)
 		for i := 1; ; i++ {
 			randomName := n.Generate()
@@ -224,18 +249,36 @@ func main() {
 			}	
 			time.Sleep(time.Second * time.Duration(*printDelay))
 		}
+=======
+    	n = name.NewNameGenerator(seed)
+>>>>>>> 6aae2c9 (Add detection of attached printer)
 	}
 	for i := 1; ; i++ {
-		// read databse to see if there are labels to print
-		if labels, err = c.dbRead(*dbURL); err != nil {
-			return
-		}
+		switch *test {
+		// if we are testing generate a fake name and process it
+		case true:
+			randomName := n.Generate()
+			n := strings.Split(randomName,"-")
+			label := make(visitor)
+			label["nameLast"] = n[1]
+			label["nameFirst"] = n[0]
+			label["URL"] = "https://makernexus.org;laskdfjas;ldkfjas;ldfkjas;ldfkjaasdf"
+			labels = make([]visitor,0)
+			labels = append(labels,label)
+		// not testing.  Read the database and process
+		case false:
+			// read databse to see if there are labels to print
+			if labels, err = c.dbRead(*dbURL); err != nil {
+				return
+			}
+		} //switch
 		// if there are no labels then print a dot and continue
 		if len(labels) == 0 {
 			fmt.Printf("%v", ".")
 			time.Sleep(time.Second)
 			continue
 		}
+		// print all the labels return from database
 		for _, label := range labels {
 			// Filter label prints by last name
 			lastName := label["nameLast"].(string)
@@ -249,8 +292,8 @@ func main() {
 				fmt.Println("Label Print Delay is:", *printDelay)
 				time.Sleep(time.Second * time.Duration(*printDelay))
 			}
-		}
+		} // for
 
-	}
+	} // for infinite loop
 }
 

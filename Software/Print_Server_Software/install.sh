@@ -69,14 +69,14 @@ fi
 
 
 bash_path=$(dirname "$0")
-cd "$bash_path"
+cd "$bash_path/printserver"
 if [ ! -f "printserver.go" ]; then
    echo "printserver.go is not in the directory with install script"
    exit 100
 fi
 go build printserver.go
 cd "$HOME/.bin"
-cp -f "$bash_path/printserver" printserver
+cp -f "$bash_path/printserver/printserver" printserver
 cd
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory

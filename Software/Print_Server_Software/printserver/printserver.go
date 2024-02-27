@@ -178,11 +178,7 @@ func (c *labelClient) printTestPage() error {
 }
 
 func newFilter(filter string) (map[string]int, error) {
-<<<<<<< HEAD
-	alpha := "abcdefghijklmnopqurstuvwxyz"
-=======
 	alpha := "abcdefghijklmnopqrstuvwxyz"
->>>>>>> 6aae2c9 (Add detection of attached printer)
 	filter = strings.ReplaceAll(filter, " ", "")
 	filterSplit := strings.Split(filter, "-")
 	if len(filterSplit) != 2 && len(filterSplit[0]) != 1 && len(filterSplit[1]) != 1 {
@@ -235,23 +231,7 @@ func main() {
 	}
 	if *test {
 		seed := time.Now().UTC().UnixNano()
-<<<<<<< HEAD
-    	n := name.NewNameGenerator(seed)
-		for i := 1; ; i++ {
-			randomName := n.Generate()
-			n := strings.Split(randomName,"-")
-			label := make(visitor)
-			if okToPrint(filterMap,n[1]) {
-				label["nameLast"] = n[1]
-				label["nameFirst"] = n[0]
-				label["URL"] = "https://makernexus.org;laskdfjas;ldkfjas;ldfkjas;ldfkjaasdf"
-				c.print(label)
-			}	
-			time.Sleep(time.Second * time.Duration(*printDelay))
-		}
-=======
     	n = name.NewNameGenerator(seed)
->>>>>>> 6aae2c9 (Add detection of attached printer)
 	}
 	for i := 1; ; i++ {
 		switch *test {

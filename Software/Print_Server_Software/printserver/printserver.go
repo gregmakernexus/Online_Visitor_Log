@@ -18,7 +18,7 @@ import (
 	name "github.com/goombaio/namegenerator"
 )
 
-var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/testVisitorLabels.php", "Database Read URL")
+var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
 var test = flag.Bool("test", false, "Label test to print labels with random names")
 var printDelay = flag.Int("delay", 0, "Delay between print commands")
 var printFilter = flag.String("filter", "a-z", "Filter on last name. eg. a-f")
@@ -204,6 +204,7 @@ func newFilter(filter string) (map[string]int, error) {
 
 func okToPrint(filterMap map[string]int, lastName string) bool {
 	firstChar := lastName[0:1]
+	firstChar = strings.ToLower(firstChar)
 	if _, exists := filterMap[firstChar]; !exists {
 		fmt.Printf("skipping label.  lastName:%v filtermap:%v\n", lastName, filterMap)
 		return false

@@ -255,7 +255,7 @@ func main() {
 		} //switch
 		// if there are no labels then print a dot and continue
 		if len(labels) == 0 {
-			fmt.Printf("%v", ".")
+			// fmt.Printf("%v", ".")
 			time.Sleep(time.Second)
 			continue
 		}

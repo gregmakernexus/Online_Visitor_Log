@@ -1,3 +1,3 @@
-module example.com/waiver
+examodule example.com/waiver
 
 go 1.21.6

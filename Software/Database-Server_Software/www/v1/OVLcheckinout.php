@@ -74,6 +74,18 @@ if (!is_numeric($previousVisitNum)) {
     logfile("visitID: " . $previousVisitNum . " has been received.");
 }
 
+# is this coming from the Android app?
+if (isset($_GET["app"])) {
+    if (is_numeric($_GET["app"])) {
+        $isFromApp = 1;
+    }   
+}
+
+$returnTextOnly = 0;  // if true, then only return text, no HTML
+if ($isFromApp == 1) {
+    $returnTextOnly = 1;
+}
+
 
 $nameFirstArray = array();
 $nameLastArray = array();
@@ -193,13 +205,13 @@ switch ($previousVisitNum) {
             // this is a new checkin today for an existing visitor
             insertNewVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
                      "", "", "", $previousVisitNum, "");
-            echoMessage( "Checked In with previousVisitNum: " . $previousVisitNum . ".");
+            echoMessage( "You have been checked in. Welcome!");
 
         } else {
 
             // we have a currentCheckInRecNum so this is a checkout
             checkoutVisitInDatabase($con, $nowSQL, $currentCheckInRecNum);
-            echoMessage( "Checked Out");
+            echoMessage( "You have been checked out. Thanks for visiting.");
 
         }
 
@@ -441,7 +453,12 @@ function debugToUser ($data) {
 // -------------------------------------
 // Send message back to user
 function echoMessage($msg) {
-    echo "<H1>" . $msg . "</H1>";
+    global $returnTextOnly;
+    if ($returnTextOnly == 1) {
+        echo $msg;
+    } else {
+        echo "<H1>" . $msg . "</H1>";
+    }   
     logfile($msg);
     exit;
 }

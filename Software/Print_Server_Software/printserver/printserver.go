@@ -18,7 +18,7 @@ import (
 	name "github.com/goombaio/namegenerator"
 )
 
-var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
+var dbURL = flag.String("db", "https://rfid.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
 var test = flag.Bool("test", false, "Label test to print labels with random names")
 var printDelay = flag.Int("delay", 0, "Delay between print commands")
 var printFilter = flag.String("filter", "a-z", "Filter on last name. eg. a-f")

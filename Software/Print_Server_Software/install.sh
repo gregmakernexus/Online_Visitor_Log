@@ -118,9 +118,10 @@ if [[ $(lpstat -a) = *QL-800* ]]; then
   echo "QL-800 printer driver is installed"
 else
   if  [[ "$ARCH" == armv* ]]; then
+    cd $bash_path
     echo Installing Brother Drivers
     rm -rf ql800*
-    wget "https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=lpql800eus&os=10041&dlid=dlfp100534_000&flang=178&type3=10261"
+    # wget "https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=lpql800eus&os=10041&dlid=dlfp100534_000&flang=178&type3=10261"
     sudo dpkg -i "ql800pdrv-2.1.4-0.armhf.deb"
     echo "To verify cups installation,open chrome.  Go to: http://localhost:631/printers"
   else

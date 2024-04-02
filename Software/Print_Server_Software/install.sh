@@ -26,7 +26,7 @@ else
   sudo rm -rf /usr/local/go  
   set -e 
   cd "$HOME/Downloads"
-  if [ "$ARCH" == aarch64* ] || [ "$ARCH" == arm64* ]; then
+  if [ "$ARCH" == aarch64 ] || [ "$ARCH" == arm64* ]; then
     wget "https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz"
     sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
   elif  [[ "$ARCH" == armv* ]]; then
@@ -47,7 +47,7 @@ else
     echo GOPATH=$HOME/go >> .bashrc
   fi
   source ~/.bashrc
-  go -v
+  go version
 fi
 
 #----------------------------------------------------

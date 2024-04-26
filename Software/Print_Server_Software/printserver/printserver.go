@@ -18,12 +18,13 @@ import (
 	name "github.com/goombaio/namegenerator"
 )
 
-var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/testVisitorLabels.php", "Database Read URL")
+var dbURL = flag.String("db", "https://rfid.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
 var test = flag.Bool("test", false, "Label test to print labels with random names")
 var printDelay = flag.Int("delay", 0, "Delay between print commands")
 var printFilter = flag.String("filter", "a-z", "Filter on last name. eg. a-f")
 var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
 var n name.Generator
+
 type visitor map[string]any
 type visitorList struct {
 	Create string `json:"dateCreated"`
@@ -32,12 +33,16 @@ type visitorList struct {
 	} `json:"data"`
 }
 
-type labelClient struct {
-	labelDir            string
+type printer struct {
 	labelTemplate       string
 	printerModel        string
 	printerManufacturer string
-	connection          *http.Client
+}
+type labelClient struct {
+	labelDir   string
+	connection *http.Client
+	printers   []printer
+	current    int
 }
 
 func newLabelClient() *labelClient {
@@ -57,37 +62,39 @@ func newLabelClient() *labelClient {
 	if err != nil {
 		log.Fatalf("exec.Command() failed error:%v\n", err)
 	}
-	lines := strings.Split(string(out),"\n")
+	lines := strings.Split(string(out), "\n")
 	if len(lines) == 0 {
 		log.Fatalf("No Printers Found")
 	}
-	loop: 
-	for _,line := range lines {
-	    tokens := strings.Split(line," ")
-	    if len(tokens) < 2 {
-		   continue
-		}
-		c.printerModel = strings.ToUpper(tokens[0]) 
-		switch {
-		case strings.Contains(c.printerModel,"QL"):
-			c.printerManufacturer = "BROTHER"
-			break loop
-		case strings.Contains(c.printerModel,"DYMO"):
-			c.printerManufacturer = "DYMO"
-			break loop
-		} // switch
-	} // for
-	if c.printerManufacturer == "" {
-		log.Fatalf("Label printer was not found\n%v\n",lines)
-	}
-	fmt.Printf("Using a %v printer.  Model:%v\n", c.printerManufacturer, c.printerModel)
-	labelByte, err = os.ReadFile(c.printerManufacturer+".glabels")
-	if err != nil {
-		log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
-	}
-	c.labelTemplate = string(labelByte)
+	printers := make([]printer, 0)
 
-	// Create the http client with no security
+	for _, line := range lines {
+		tokens := strings.Split(line, " ")
+		if len(tokens) < 2 {
+			continue
+		}
+		var p printer
+		p.printerModel = strings.ToUpper(tokens[0])
+		switch {
+		case strings.Contains(p.printerModel, "QL"):
+			p.printerManufacturer = "BROTHER"
+		case strings.Contains(p.printerModel, "DYMO"):
+			p.printerManufacturer = "DYMO"
+		default:
+			continue
+		} // switch
+		fmt.Printf("Using a %v printer.  Model:%v\n", p.printerManufacturer, p.printerModel)
+		labelByte, err = os.ReadFile(p.printerManufacturer + ".glabels")
+		if err != nil {
+			log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+		}
+		p.labelTemplate = string(labelByte)
+		printers = append(printers, p)
+	} // for
+	c.printers = printers
+	c.current = 0
+	// Create the http client with no security this is to access the database 
+	// website
 	c.connection = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -119,7 +126,15 @@ func (c *labelClient) dbRead(url string) ([]visitor, error) {
 
 }
 func (c *labelClient) print(info visitor) error {
-	var temp string = c.labelTemplate
+	// to handle multiple printers, we will print to each printer in a 
+	// round robin fashion.  So get the printer info and get ready for next
+	p := c.printers[c.current]
+	c.current++
+	if len(c.printers) >= c.current {
+		c.current = 0
+	} 
+	
+	var temp string = p.labelTemplate
 	// Get the date right now and update the label
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
@@ -144,36 +159,40 @@ func (c *labelClient) print(info visitor) error {
 	if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
 		log.Fatalf("Error writing label file error:%v\n", err)
 	}
-	// print the label
-	if out, err := exec.Command("glabels-batch-qt", "temp.glabels").CombinedOutput(); err != nil {
-		log.Fatalf("exec.Command failed error:%v\noutput:%v\n", err,out)
+	// print the label to the current printer
+	printer := fmt.Sprintf("--printer %v",p)
+	if out, err := exec.Command("glabels-batch-qt", printer, "temp.glabels").CombinedOutput(); err != nil {
+		log.Fatalf("exec.Command failed error:%v\noutput:%v\n", err, out)
 	}
 	return nil
 }
 
-func (c *labelClient) printTestPage() error {
-	var temp string = c.labelTemplate
-	// Get the date right now and update the label
-	t := time.Now()
-	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
-	temp = strings.Replace(temp, "${Date}", nowDate, -1)
-	temp = strings.Replace(temp, "${nameFirst}", "WELCOME TO MAKERNEXUS", -1)
-	temp = strings.Replace(temp, "${nameLast}", "", -1)
-	temp = strings.Replace(temp, "Visitor", "Test Label", -1)
-	// cd to the Mylabel directory so we can write files
-	if err := os.Chdir(c.labelDir); err != nil {
-		log.Fatal("Label directory does not exist.")
+// Print a test page to each printer
+func (c *labelClient) printTestPages() error {
+	for _,p := range c.printers {
+		var temp string = p.labelTemplate
+		// Get the date right now and update the label
+		t := time.Now()
+		nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
+		temp = strings.Replace(temp, "${Date}", nowDate, -1)
+		temp = strings.Replace(temp, "${nameFirst}", "WELCOME TO MAKERNEXUS", -1)
+		temp = strings.Replace(temp, "${nameLast}", "", -1)
+		temp = strings.Replace(temp, "Visitor", "Test Label", -1)
+		// cd to the Mylabel directory so we can write files
+		if err := os.Chdir(c.labelDir); err != nil {
+			log.Fatal("Label directory does not exist.")
+		}
+		// delete and write the temp.glables file
+		os.Remove("temp.glabels")
+		if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
+			log.Fatalf("Error writing label file error:%v\n", err)
+		}
+		// print the label
+		printer := fmt.Sprintf("--printer %v",p)
+		if out, err := exec.Command("glabels-batch-qt", printer, "temp.glabels").CombinedOutput(); err != nil {
+			log.Fatalf("exec.Command failed error:%v\noutput:%v\n", err, out)
+		}
 	}
-	// delete and write the temp.glables file
-	os.Remove("temp.glabels")
-	if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
-		log.Fatalf("Error writing label file error:%v\n", err)
-	}
-	// print the label
-	if out, err := exec.Command("glabels-batch-qt", "temp.glabels").CombinedOutput(); err != nil {
-		log.Fatalf("cmd.Run() failed error:%v\n%v\n", err, out)
-	}
-
 	return nil
 }
 
@@ -204,12 +223,13 @@ func newFilter(filter string) (map[string]int, error) {
 
 func okToPrint(filterMap map[string]int, lastName string) bool {
 	firstChar := lastName[0:1]
+	firstChar = strings.ToLower(firstChar)
 	if _, exists := filterMap[firstChar]; !exists {
 		fmt.Printf("skipping label.  lastName:%v filtermap:%v\n", lastName, filterMap)
 		return false
 	}
 	return true
-}	
+}
 func main() {
 	// init command line flags
 	flag.Parse()
@@ -219,7 +239,7 @@ func main() {
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	// fmt.Println("Label Print Delay is:", *printDelay)
 	// Print Test Page
-	c.printTestPage()
+	c.printTestPages()
 
 	var err error
 	var labels []visitor
@@ -231,20 +251,20 @@ func main() {
 	}
 	if *test {
 		seed := time.Now().UTC().UnixNano()
-    	n = name.NewNameGenerator(seed)
+		n = name.NewNameGenerator(seed)
 	}
 	for i := 1; ; i++ {
 		switch *test {
 		// if we are testing generate a fake name and process it
 		case true:
 			randomName := n.Generate()
-			n := strings.Split(randomName,"-")
+			n := strings.Split(randomName, "-")
 			label := make(visitor)
 			label["nameLast"] = n[1]
 			label["nameFirst"] = n[0]
 			label["URL"] = "https://makernexus.org;laskdfjas;ldkfjas;ldfkjas;ldfkjaasdf"
-			labels = make([]visitor,0)
-			labels = append(labels,label)
+			labels = make([]visitor, 0)
+			labels = append(labels, label)
 		// not testing.  Read the database and process
 		case false:
 			// read databse to see if there are labels to print
@@ -254,7 +274,7 @@ func main() {
 		} //switch
 		// if there are no labels then print a dot and continue
 		if len(labels) == 0 {
-			fmt.Printf("%v", ".")
+			// fmt.Printf("%v", ".")
 			time.Sleep(time.Second)
 			continue
 		}
@@ -276,4 +296,3 @@ func main() {
 
 	} // for infinite loop
 }
-

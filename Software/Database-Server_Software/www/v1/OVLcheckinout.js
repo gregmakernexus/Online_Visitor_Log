@@ -72,21 +72,32 @@ document.addEventListener('DOMContentLoaded', function(){
             method: 'POST',
             body: formData
         })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was ' + response.status + ' ' + response.statusText);
+            } else {
+                
+                // Check if the person has signed the waiver
+                if (this.elements['hasSignedWaiver'].value == 0 ) {
+                    // Clear the form
+                    this.reset();
+                    alertUser("You will now go to the waiver page.", "blue",1000)
+                    window.location.href = "https://app.waiversign.com/e/6421facd543e76001945bf5c/doc/6421fb7d543e76001945c3cb?event=none";
+                } else {
+                    // Clear the form
+                    this.reset();
+                    alertUser("You have been checked in. Thank you.", "green", 2000);
+                    window.location.href = "https://makernexus.org";
+                }
+            }
+        })
         .then(data => console.log(data))
-        .catch((error) => console.error('Error:', error));
+        .catch((error) => {
+            console.error('Error:', error);
+            alertUser("An error occurred: " + error + " ... Please try again.", "red");
+        });
 
-        if (this.elements['hasSignedWaiver'].value == 0 ) {
-            // Clear the form
-            this.reset();
-            alertUser("You will now go to the waiver page.", "blue",1000)
-            window.location.href = "https://app.waiversign.com/e/6421facd543e76001945bf5c/doc/6421fb7d543e76001945c3cb?event=none";
-        } else {
-            // Clear the form
-            this.reset();
-            alertUser("You have been checked in. Thank you.", "green", 2000);
-            window.location.href = "https://makernexus.org";
-        }
+        
 
     });
 

@@ -25,6 +25,8 @@ $dbName = $ini_array["SQL_DB"]["dataBaseName"];
 
 $con = mysqli_connect("localhost",$dbUser,$dbPassword,$dbName);
 
+$pathToOVL = $ini_array["OVL"]["pathToOVL"];
+
 // Check connection
 if (mysqli_connect_errno()) {
     debugToUser( "Failed to connect to MySQL: " . mysqli_connect_error());
@@ -35,7 +37,6 @@ $visitorArray =  array();  // create empty array here, in case of SQL error
 
 $sql = "SELECT recNum, nameFirst, nameLast FROM ovl_visits " 
         . " WHERE labelNeedsPrinting = 1"
-        . " AND dateCheckinLocal > '" . $nowSQL . "'"
         . " LIMIT 5";
 
 debugtouser("sql" . $sql . "<br>");
@@ -58,7 +59,7 @@ if (!$result) {
             $visitorArray[$visitorCount]["recNum"] = $row["recNum"];
             $visitorArray[$visitorCount]["nameFirst"] = $row["nameFirst"];
             $visitorArray[$visitorCount]["nameLast"] = $row["nameLast"];
-            $visitorArray[$visitorCount]["URL"] = "https://rfid.makernexuswiki.com/v1/OVLcheckinout.php?vid=" . $row["recNum"];
+            $visitorArray[$visitorCount]["URL"] = $pathToOVL . "OVLcheckinout.php?vid=" . $row["recNum"];
             $recNumList = $recNumList . $row["recNum"] . ",";
         }
         $recNumList = substr($recNumList, 0, -1); // remove trailing comma

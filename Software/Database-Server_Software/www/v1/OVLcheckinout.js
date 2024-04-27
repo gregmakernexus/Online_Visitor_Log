@@ -86,8 +86,12 @@ document.addEventListener('DOMContentLoaded', function(){
                 } else {
                     // Clear the form
                     this.reset();
-                    alertUser("You have been checked in. Thank you.", "green", 2000);
-                    window.location.href = "https://makernexus.org";
+                    if (this.elements['previousvisitnum'].value == -2) {
+                        alertUser("You have been registered. Thank you.", "green", 2000);
+                    } else {
+                        alertUser("You have been checked in. Thank you.", "green", 2000);
+                        window.location.href = "https://makernexus.org";
+                    }
                 }
             }
         })

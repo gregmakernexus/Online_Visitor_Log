@@ -102,7 +102,7 @@ $email = "";
 $phone = "";
 $visitReason = "";
 
-if ($previousVisitNum == -1) {
+if ($previousVisitNum == -1 || $previousVisitNum == -2){
     // this is a post from the form, get the data
 
     // Get the posted data
@@ -153,7 +153,7 @@ if ($previousVisitNum == -1) {
 switch ($previousVisitNum) {
     
     case -2:
-        // This came from the form, but for a new visitor who is not checking in
+        // This came from the form, but for a new visitor who is not checking in, just want to print the badge
         addPeopleToDatabase($con, $nowSQL, $nameFirstArray, $nameLastArray, $email, $phone, $visitReason, $howDidYouHear, $hasSignedWaiver, $numPeople, 0);        
         break;
 
@@ -256,6 +256,7 @@ function registerVisitorInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email,
     $previousVisitNum = 0;
     $labelNeedsPrinting = 1;
     $elapsedHours = -999;
+    $checkinDate = "0000-00-00 00:00:00";
 
     // use this format to avoid SQL injection attacks
     $sql = "INSERT INTO ovl_visits (nameFirst, nameLast, email, phone, visitReason, previousRecNum, "
@@ -263,7 +264,7 @@ function registerVisitorInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email,
         . " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
     $stmt = mysqli_prepare($con, $sql);
     mysqli_stmt_bind_param($stmt, "sssssisssisii", $nameFirst, $nameLast, $email, $phone, $visitReason, $previousVisitNum, 
-            $nowSQL, $nowSQL, $nowSQL, $labelNeedsPrinting, $howDidYouHear, $hasSignedWaiver, $elapsedHours);
+            $nowSQL, $checkinDate, $checkinDate, $labelNeedsPrinting, $howDidYouHear, $hasSignedWaiver, $elapsedHours);
 
     $result = mysqli_stmt_execute($stmt);
     if (!$result) {

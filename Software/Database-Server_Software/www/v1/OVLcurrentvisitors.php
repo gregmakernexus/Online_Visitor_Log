@@ -47,7 +47,8 @@ $nowSQL = $today->format("Y-m-d"); // just the date
 
 $sql = "SELECT recNum, nameFirst, nameLast FROM ovl_visits " 
         . " WHERE dateCheckinLocal > '" . $nowSQL . "'"
-        . " AND dateCheckoutLocal = '0000-00-00 00:00:00'";
+        . " AND dateCheckoutLocal = '0000-00-00 00:00:00'"
+        . " ORDER BY nameLast, nameFirst";
 
 $result = mysqli_query($con, $sql);
 if (!$result) {

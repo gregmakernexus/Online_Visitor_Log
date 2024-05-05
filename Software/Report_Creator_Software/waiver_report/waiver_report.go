@@ -121,7 +121,7 @@ func main() {
 	 * Read the csv into a slice
 	 *--------------------------------------------------------------*/
 	if c.CsvName == "" {
-
+        log.V(0).Fatalf("CSV file name is missing")
 	}
 	log.V(0).Printf("Opening csv name:%v\n", c.CsvName)
 	csvFile, err := os.Open(c.CsvName)
@@ -193,7 +193,7 @@ type waiver_config struct {
 // 1. Create directories
 // 2. If config does not exist, collect config info via cli.  Store to disk.
 // 3. Read it back in.  Return *visitor_config
-func newSheetConfig(ctx context.Context, log *debug.DebugClient,
+func newSheetConfig(_ context.Context, log *debug.DebugClient,
 	spreadsheetTitle, sheetName, csvName string) (*sheet_config, error) {
 	// new sheet client
 	c := new(sheet_config)

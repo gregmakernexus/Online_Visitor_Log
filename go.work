@@ -1,3 +1,5 @@
 go 1.21.6
 
 use ./Software/Print_Server_Software/printserver
+use ./Software/Report_Creator_Software/debug
+use ./Software/Report_Creator_Software/sheet

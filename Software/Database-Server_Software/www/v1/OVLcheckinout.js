@@ -13,13 +13,16 @@ window.onload = function() {
         switch (element.value) {
             case "-1":
                 document.getElementById('signin').style.display = 'block';
+                document.getElementById('submitbutton').value = "Check In";
                 break;
             case "-2":
                 document.getElementById('registeronly').style.display = 'block';
+                document.getElementById('submitbutton').value = "Pre Register";
                 break;
             default:
                 document.getElementById('signin').style.display = 'block';
                 document.getElementById('previousvisitnum').value = -1;
+                document.getElementById('submitbutton').value = "Check In";
                 break;
         }
     } else {

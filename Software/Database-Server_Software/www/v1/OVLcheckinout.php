@@ -171,6 +171,8 @@ switch ($previousVisitNum) {
             //logfile("unable to open file");
             die("unable to open file");
         }
+        // replace the submit button with the visitID
+        $html = str_replace("<<<SUBMITBUTTONVALUE>>>", "Check In", $html);
         // send the HTML
         echo $html;
         break;

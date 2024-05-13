@@ -95,8 +95,7 @@ function updateBadgePrintInDatabase($con, $nowSQL, $recNum) {
         . " dateUpdated = '" . $nowSQL . "',"
         . " dateUpdatedLocal = '" . $nowSQL . "',"
         . " labelNeedsPrinting = 1"
-        . " WHERE recNum = " . $recNum 
-        . "   and dateCreatedLocal > " . "'" . $nowSQL . "' - INTERVAL 1 DAY";
+        . " WHERE recNum = " . $recNum ;
 
     debugToUser(  "sql: " . $sql);
 

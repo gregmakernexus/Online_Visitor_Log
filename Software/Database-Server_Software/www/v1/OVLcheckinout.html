@@ -18,11 +18,11 @@
 -->
     
 <HEAD>
-    <TITLE>Check In/Out</TITLE>
+    <TITLE>Maker Nexus Check In/Out</TITLE>
     <META NAME="Author" CONTENT="">
     <META NAME="Keywords" CONTENT="">
     <META NAME="Description" CONTENT="">
-    <!-- <meta name="viewport" content="width=device-width, initial-scale=1"> -->
+    <!-- This fails on iPhone <meta name="viewport" content="width=device-width, initial-scale=1"> -->
     <script src="OVLcheckinout.js"></script>
     <link rel="stylesheet" type="text/css" href="OVLstyles.css">
     
@@ -34,19 +34,24 @@
         <div class="logo" style="float: right; margin: 0px 0px 0px 20px; width: 20%;">
             <img src="MakerNexus_Logo.jpg" alt="Maker Nexus Logo">
         </div>
-        <div class="intro" style="float: left; margin: 0px 0px 0px 20px;">
-            
-            <h1 class="topheading">Maker Nexus Visitor Log</h1>
+        <div id="signin" class="intro" style="display:none; float: left; margin: 0px 0px 0px 20px;">
+            <h1 class="topheading">Maker Nexus Visitor Sign In</h1>
             <p>In case of an emergency, it is important for us to know who is in the building at any given time.</p>
             <p>Please complete the form. When done we will print you a name badge. Please wear the 
                 name badge while you are in the makerspace.
             </p>
             <p>When you leave, use the QR code on your badge to checkout.</p>
         </div>
+        <div id="registeronly" class="intro" style="display:none; float: left; margin: 0px 0px 0px 20px;">
+            <h1 class="topheading">Maker Nexus Visitor PRE REGISTER</h1>
+            <p>Please complete the form. We will print a name tag for you to pick up at the front desk. </p>
+            <p>You can then use the QR code on that name tag to sign in when you arrive.</p>
+        </div>
     </div>
     <div class="ourform">
         <FORM id="checkinform" METHOD="POST">
-            <INPUT TYPE="HIDDEN" NAME="previousVisitNum" VALUE="-1">
+            <!-- This is a special value that tells the checkinout.php script to pre-register the user(s) -->
+            <INPUT TYPE="HIDDEN" id="previousvisitnum" NAME="previousVisitNum" VALUE="<<<PREVIOUSVISITNUM>>>">
             <input type="hidden" id="numPeople" name="numPeople" value="1">
             <div class="fieldwrapper">
                 <div class= "fieldtitle">
@@ -99,7 +104,7 @@
                     <label><input type="radio" name="hasSignedWaiver" value="1"> Yes</label>
                 </div>
                 <div id="waiverbuttonno" style="float:left; ">
-                    <label><input type="radio" name="hasSignedWaiver" value="0"> No</label>
+                    <label><input type="radio" name="hasSignedWaiver" value="0" checked> No</label>
                 </div>
             </div>
             <div class= "fieldtitle">
@@ -109,7 +114,7 @@
                <TEXTAREA NAME="howDidYouHear" ROWS=2 COLS=40 MAXLENGTH="128" VALUE=""></TEXTAREA>
             </div>
             <div class= "fieldtitle">
-                <INPUT TYPE="SUBMIT" VALUE="Check In">
+                <INPUT id="submitbutton" TYPE="SUBMIT" VALUE="<<<SUBMITBUTTONVALUE>>>">
             </div>
         </FORM>
         <div class="fieldtitle" style="margin-bottom: 50px;">

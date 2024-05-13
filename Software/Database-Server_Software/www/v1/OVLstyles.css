@@ -1,6 +1,6 @@
 /* -- basic css for the OLV form -- */
 body {
-    width: 80%;
+    width: 800px;
     margin: 1px 10px 1px 10px;
     font-size: 16px;
 }
@@ -51,6 +51,7 @@ div.visitor{
     width: 200px;
     float:left;
 }
+
 input {
     font-size: 16px;
 }
@@ -70,12 +71,24 @@ input[type="checkbox"] {
 input[type="radio"] {
     transform: scale(1);
 }
+input[type="submit"] {
+    background-color: blue;
+    color:white;
+    width:200px;
+    border-radius: 12px;
+    height: 50px;
+}
 #waiverbuttonno {            
     margin-left: 40px; 
-    font-size: 20px
+    font-size: 20px;
+}
+#addAPerson{
+    background-color:teal;
+    color:white;
+    border-radius: 20px;
 }
 
-/* Smartphones (portrait and landscape) ----------- */
+/* iPhone (portrait and landscape) ----------- */
 
 @media screen and (max-device-width: 600px) {
     body {
@@ -129,6 +142,76 @@ input[type="radio"] {
     }
     #waiverbuttonno {            
         margin-left: 200px; 
+    }
+    #addAPerson{
+        background-color:cornflowerblue;
+        color:white;
+    }
+    input[type="submit"] {
+        margin: 20px 1px 50px 1px;
+        width: 400px;
+        height: 150px;
+        font-size: 50px
+    }
+}
+
+/* samsung phones (portrait and landscape) ----------- */
+@media screen and (max-width: 600px) {
+    body {
+        width: auto;
+        margin: 1px 10px 1px 10px;
+        font-size: 50px;
+    }
+    div.pagetopdiv{
+        width: 100%;
+    }
+    h1.topheading{
+        font-size: 70px; 
+    }
+    div.intro{
+        clear:both;
+        font-size: 50px; 
+        width: 100%;
+    }
+    div.ourform{
+        font-size: 50px; 
+    }
+    div.fieldtitle{
+        font-size: 50px; 
+    }
+    div.visitreasoncheckbox{
+        margin-top:20px;
+    }
+    div.extraPersonField{
+        margin-top:75px;
+    }
+    input {
+        font-size: 50px;
+    }
+    textarea {
+        font-size: 50px;
+    }
+    p{
+        font-size: 50px;
+    }
+    label{
+        font-size: 50px;
+    }
+    input[type="checkbox"] {
+        transform: scale(2);
+        font-size: 50px;
+        margin-left: 100px;
+    }            
+    input[type="radio"] {
+        transform: scale(2);
+        font-size: 50px;
+    }
+    #waiverbuttonno {            
+        margin-left: 200px; 
+    }
+    #addAPerson{
+        background-color:green;
+        color:white;
     }
     input[type="submit"] {
         margin: 20px 1px 50px 1px;

@@ -9,13 +9,19 @@
 // This code is called from a web form or a QR code. It checks in or checks out a visitor.
 // The code is called with a visitID from a QR code or from a web form. 
 //
+// Optional parameters:
+//   vid: the visitID from the QR code
+// If the visitID is -2, then we are creating a record for a new visitor but not checking them in.
+//        This would be done so that visitors can register and get a badge printed before coming in
+//        to the building.
 // If the visitID is -1, then the code is being called from a web form. 
-// If the visitID is 0, then the code is being called from a bare URL 
+// If the visitID is 0, (or missing) then the code is being called from a bare URL 
 //        and the code will serve up the HTML form. 
 // If the visitID is a number, then the code is being called from a QR 
 //        code and the code will check in or check out the visitor.
+//   
 //
-// Date: 2024-02-21
+// Date: 2024-03-05
 //
 
 include 'OVLcommonfunctions.php';
@@ -96,7 +102,7 @@ $email = "";
 $phone = "";
 $visitReason = "";
 
-if ($previousVisitNum == -1) {
+if ($previousVisitNum == -1 || $previousVisitNum == -2){
     // this is a post from the form, get the data
 
     // Get the posted data
@@ -139,37 +145,22 @@ if ($previousVisitNum == -1) {
 }
 
 // based on $previousVisitNum:
+//   -2: register a new visitor but don't check them in, just print a badge
 //   -1: post data came from the form, human input
 //    0: request came from a URL with no previous visit
 //  num: data came from a QR code with the previous visit number in it
 //
 switch ($previousVisitNum) {
     
+    case -2:
+        // This came from the form, but for a new visitor who is not checking in, just want to print the badge
+        addPeopleToDatabase($con, $nowSQL, $nameFirstArray, $nameLastArray, $email, $phone, $visitReason, $howDidYouHear, $hasSignedWaiver, $numPeople, 0);        
+        break;
+
     case -1:
         // This came from the form, 
-        // insert a new visit into the database for each person in the form
-
-        # the first person must be populated
-        if (trim($nameFirstArray[0]) == "" or trim($nameLastArray[0]) == "") {
-            echoMessage("First and last name are required. No action taken.");
-            logfile("No name entered. No action taken.");
-            exit;
-        }
-
-        # add to database for each person
-        $numAdded = 0;
-        for ($i = 0; $i < $numPeople; $i++) {
-            // only add if first and last name are populated
-            if (trim($nameFirstArray[$i]) != "" and trim($nameLastArray[$i]) != "") {
-                $numAdded++;
-                if ($numAdded > 1) {
-                    $email = "";
-                    $phone = "";
-                }
-                insertNewVisitInDatabase($con, $nowSQL, $nameFirstArray[$i], $nameLastArray[$i], $email, $phone,
-                    $visitReason, 0, $howDidYouHear);
-            }
-        }
+        // insert a new visit into the database for each person in the form, checking them in
+        addPeopleToDatabase($con, $nowSQL, $nameFirstArray, $nameLastArray, $email, $phone, $visitReason, $howDidYouHear, $hasSignedWaiver, $numPeople, 1);
         break;
 
     case 0:
@@ -180,6 +171,8 @@ switch ($previousVisitNum) {
             //logfile("unable to open file");
             die("unable to open file");
         }
+        // replace the submit button with the visitID
+        $html = str_replace("<<<SUBMITBUTTONVALUE>>>", "Check In", $html);
         // send the HTML
         echo $html;
         break;
@@ -203,8 +196,8 @@ switch ($previousVisitNum) {
         } elseif ($currentCheckInRecNum == 0) {
 
             // this is a new checkin today for an existing visitor
-            insertNewVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
-                     "", "", "", $previousVisitNum, "");
+            checkinVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
+                     "", "", "", $previousVisitNum, "", $currentCheckInData["hasSignedWaiver"]);
             echoMessage( "You have been checked in. Welcome!");
 
         } else {
@@ -224,10 +217,74 @@ switch ($previousVisitNum) {
 // END OF MAIN CODE
 
 
-//------------------------------------------------------------------------
-// Insert a new visit into the database
-function insertNewVisitInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email, $phone, $visitReason, $previousVisitNum, $howDidYouHear) {
 
+//------------------------------------------------------------------------
+
+function addPeopleToDatabase($con, $nowSQL, $nameFirstArray, $nameLastArray, $email, $phone, $visitReason, $howDidYouHeard, $hasSignedWaiver, $numPeople, $isCheckingIn){
+   
+    # the first person must be populated
+    if (trim($nameFirstArray[0]) == "" or trim($nameLastArray[0]) == "") {
+        echoMessage("First and last name are required. No action taken.");
+        logfile("No name entered. No action taken.");
+        exit;
+    }
+
+    # add to database for each person
+    $numAdded = 0;
+    for ($i = 0; $i < $numPeople; $i++) {
+        // only add if first and last name are populated
+        if (trim($nameFirstArray[$i]) != "" and trim($nameLastArray[$i]) != "") {
+            $numAdded++;
+            if ($numAdded > 1) {
+                $email = "";
+                $phone = "";
+            }
+            if ($isCheckingIn == 0) {
+                registerVisitorInDatabase($con, $nowSQL, $nameFirstArray[$i], $nameLastArray[$i], $email, $phone, $visitReason, $howDidYouHeard, $hasSignedWaiver);
+            } else {
+                insertVisitInDatabase($con, $nowSQL, $nameFirstArray[$i], $nameLastArray[$i], $email, $phone,
+                    $visitReason, 0, $howDidYouHeard, $hasSignedWaiver);
+            }
+        }
+    }
+}
+
+
+
+// Insert a new visit into the database
+
+function registerVisitorInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email, $phone, $visitReason, $howDidYouHear, $hasSignedWaiver) {
+    $willCheckIn = 0;
+    $previousVisitNum = 0;
+    $labelNeedsPrinting = 1;
+    $elapsedHours = -999;
+    $checkinDate = "0000-00-00 00:00:00";
+
+    // use this format to avoid SQL injection attacks
+    $sql = "INSERT INTO ovl_visits (nameFirst, nameLast, email, phone, visitReason, previousRecNum, "
+        . " dateCreatedLocal, dateCheckinLocal, dateCheckoutLocal, labelNeedsPrinting, howDidYouHear, hasSignedWaiver, elapsedHours) "
+        . " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    $stmt = mysqli_prepare($con, $sql);
+    mysqli_stmt_bind_param($stmt, "sssssisssisii", $nameFirst, $nameLast, $email, $phone, $visitReason, $previousVisitNum, 
+            $nowSQL, $checkinDate, $checkinDate, $labelNeedsPrinting, $howDidYouHear, $hasSignedWaiver, $elapsedHours);
+
+    $result = mysqli_stmt_execute($stmt);
+    if (!$result) {
+        logfile("Error on exec: " . mysqli_stmt_error($stmt));
+        debugToUser(  "Error on exec: " . mysqli_stmt_error($stmt) . "<br>");
+    } else {
+        // update 
+        debugToUser(  "New record created successfully" . "<br>");
+        logfile("New record created successfully");
+    }
+
+    mysqli_stmt_close($stmt);
+
+}
+
+
+
+function insertVisitInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email, $phone, $visitReason, $previousVisitNum, $howDidYouHear, $hasSignedWaiver) {
     $labelNeedsPrinting = 1;
     if ($previousVisitNum != 0) {
         $labelNeedsPrinting = 0;  // don't print a label badge for a person using a QR code
@@ -235,10 +292,11 @@ function insertNewVisitInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email, 
 
     // use this format to avoid SQL injection attacks
     $sql = "INSERT INTO ovl_visits (nameFirst, nameLast, email, phone, visitReason, previousRecNum, "
-        . " dateCreatedLocal, dateCheckinLocal, labelNeedsPrinting, howDidYouHear) VALUES (?,?,?,?,?,?,?,?,?,?)";
+        . " dateCreatedLocal, dateCheckinLocal, labelNeedsPrinting, howDidYouHear, hasSignedWaiver) "
+        . " VALUES (?,?,?,?,?,?,?,?,?,?,?)";
     $stmt = mysqli_prepare($con, $sql);
-    mysqli_stmt_bind_param($stmt, "sssssissis", $nameFirst, $nameLast, $email, $phone, $visitReason, $previousVisitNum, 
-            $nowSQL, $nowSQL, $labelNeedsPrinting, $howDidYouHear);
+    mysqli_stmt_bind_param($stmt, "sssssissisi", $nameFirst, $nameLast, $email, $phone, $visitReason, $previousVisitNum, 
+            $nowSQL, $nowSQL, $labelNeedsPrinting, $howDidYouHear, $hasSignedWaiver);
 
     $result = mysqli_stmt_execute($stmt);
     if (!$result) {
@@ -255,6 +313,8 @@ function insertNewVisitInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email, 
 
 //------------------------------------------------------------------------
 // check the visitor out
+// calculate elapsed time, round up to one hour if less than one hour
+//
 function checkoutVisitInDatabase($con, $nowSQL, $visitID) {
 
     $sql = "SELECT dateCheckinLocal FROM ovl_visits " 
@@ -276,6 +336,10 @@ function checkoutVisitInDatabase($con, $nowSQL, $visitID) {
     $dateCheckoutLocal->setTimeZone(new DateTimeZone("America/Los_Angeles"));
     $interval = $dateCheckinLocal->diff($dateCheckoutLocal);
     $elapsedTime = $interval->format('%h');
+    // if the elapsed time is less than one hour, then round up to one hour
+    if ($elapsedTime == 0) {
+        $elapsedTime = 1;
+    }
 
     // update the existing visit to check the visitor out 
     $sql = "UPDATE ovl_visits SET "
@@ -400,7 +464,8 @@ function getCurrentCheckin ($con, $visitID){
                 "nameLastFromDB" =>$row["nameLast"], 
                 "nameFirstFromDB" => $row["nameFirst"],
                 "email" => $row["email"], 
-                "phone" => $row["phone"]
+                "phone" => $row["phone"],
+                "hasSignedWaiver" => $row["hasSignedWaiver"]
                 ) ;
     return $returnThis;
 }

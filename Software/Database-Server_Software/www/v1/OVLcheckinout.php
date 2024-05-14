@@ -256,7 +256,7 @@ function addPeopleToDatabase($con, $nowSQL, $nameFirstArray, $nameLastArray, $em
 function registerVisitorInDatabase($con, $nowSQL, $nameFirst, $nameLast, $email, $phone, $visitReason, $howDidYouHear, $hasSignedWaiver) {
     $willCheckIn = 0;
     $previousVisitNum = 0;
-    $labelNeedsPrinting = 1;
+    $labelNeedsPrinting = 0;
     $elapsedHours = -999;
     $checkinDate = "0000-00-00 00:00:00";
 

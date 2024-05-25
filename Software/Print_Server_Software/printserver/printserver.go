@@ -93,7 +93,7 @@ func newLabelClient() *labelClient {
 	} // for
 	c.printers = printers
 	c.current = 0
-	// Create the http client with no security this is to access the database 
+	// Create the http client with no security this is to access the database
 	// website
 	c.connection = &http.Client{
 		Transport: &http.Transport{
@@ -126,22 +126,45 @@ func (c *labelClient) dbRead(url string) ([]visitor, error) {
 
 }
 func (c *labelClient) print(info visitor) error {
-	// to handle multiple printers, we will print to each printer in a 
+	// to handle multiple printers, we will print to each printer in a
 	// round robin fashion.  So get the printer info and get ready for next
 	p := c.printers[c.current]
 	c.current++
 	if len(c.printers) >= c.current {
 		c.current = 0
-	} 
-	
+	}
+
 	var temp string = p.labelTemplate
 	// Get the date right now and update the label
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
+	visitorType := map[string]string{
+		"tour":            "Visitor (tour)",
+		"classOrworkshop": "Class/Workshop",
+		"makernexusevent": "Special Event",
+		"makernexuscamp":  "Kids Camp",
+		"volunteering":    "Volunteer",
+		"guest":           "Visitor",
+		"forgotbadge":     "Member",
+		"other":           "Visitor",
+	}
 	// loop through each field and update the label
 	for key, data := range info {
 		log.Println("key:", key, " data:", data)
+		// do a special edit to make the reason for visit readable
+		if key == "visitReason" {
+			// if visitReason exists then replace visitor
+			if reason, exist := visitorType[data.(string)]; exist {
+				temp = strings.Replace(temp, "Visitor", reason, -1)
+				continue
+			}
+			// unknown visitREason so replace Visitor with the database value
+			if data.(string) != "" {
+				temp = strings.Replace(temp, "Visitor", data.(string), -1)
+				continue
+			}
+		}
 		dataType := fmt.Sprintf("%T", data)
 		switch dataType {
 		case "string":
@@ -150,6 +173,9 @@ func (c *labelClient) print(info visitor) error {
 			temp = strings.Replace(temp, "${"+key+"}", strconv.Itoa(data.(int)), -1)
 		}
 	}
+	// Replace the Visitor string with a Reason for visit.  The strings from the
+	// database are criptic at best.  So, they must be transformed into something for the badge
+
 	// cd to the Mylabel directory so we can write files
 	if err := os.Chdir(c.labelDir); err != nil {
 		log.Fatal("Label directory does not exist.")
@@ -160,7 +186,7 @@ func (c *labelClient) print(info visitor) error {
 		log.Fatalf("Error writing label file error:%v\n", err)
 	}
 	// print the label to the current printer
-	printer := fmt.Sprintf("--printer %v",p)
+	printer := fmt.Sprintf("--printer %v", p)
 	if out, err := exec.Command("glabels-batch-qt", printer, "temp.glabels").CombinedOutput(); err != nil {
 		log.Fatalf("exec.Command failed error:%v\noutput:%v\n", err, out)
 	}
@@ -169,7 +195,7 @@ func (c *labelClient) print(info visitor) error {
 
 // Print a test page to each printer
 func (c *labelClient) printTestPages() error {
-	for _,p := range c.printers {
+	for _, p := range c.printers {
 		var temp string = p.labelTemplate
 		// Get the date right now and update the label
 		t := time.Now()
@@ -188,7 +214,7 @@ func (c *labelClient) printTestPages() error {
 			log.Fatalf("Error writing label file error:%v\n", err)
 		}
 		// print the label
-		printer := fmt.Sprintf("--printer %v",p)
+		printer := fmt.Sprintf("--printer %v", p)
 		if out, err := exec.Command("glabels-batch-qt", printer, "temp.glabels").CombinedOutput(); err != nil {
 			log.Fatalf("exec.Command failed error:%v\noutput:%v\n", err, out)
 		}

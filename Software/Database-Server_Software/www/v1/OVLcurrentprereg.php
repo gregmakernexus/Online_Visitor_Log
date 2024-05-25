@@ -22,7 +22,7 @@ debugToUser( "OVLdebug is active. " . $nowSQL .  "<br>");
 allowWebAccess();  // if IP not allowed, then die
 
 // get the HTML skeleton
-$html = file_get_contents("OVLcurrentvisitors.html");
+$html = file_get_contents("OVLcurrentprereg.html");
 if (!$html){
   die("unable to open file");
 }
@@ -45,9 +45,11 @@ $today = new DateTime();
 $today->setTimeZone(new DateTimeZone("America/Los_Angeles"));
 $nowSQL = $today->format("Y-m-d"); // just the date
 
-$sql = "SELECT recNum, nameFirst, nameLast FROM ovl_visits " 
-        . " WHERE dateCheckinLocal > '" . $nowSQL . "'"
-        . " AND dateCheckoutLocal = '0000-00-00 00:00:00'"
+// find all preregistered visitors that have not checked in
+$sql = "SELECT recNum, nameFirst, nameLast FROM ovl_visits "
+        . " WHERE dateCheckinLocal  = 0"
+        . " and recNum not IN"
+        . "      (select DISTINCT previousRecNum from ovl_visits) "
         . " ORDER BY nameLast, nameFirst";
 
 $result = mysqli_query($con, $sql);
@@ -95,19 +97,11 @@ function makeDiv($visitID, $nameFirst, $nameLast) {
         . $nameFirst . " "
         . $nameLast . " "
         . "</a>"
-        . "&nbsp;&nbsp;&nbsp;"
-        . makeCheckoutLink($visitID)
+        . "&nbsp;"
         . "</div>\r\n";
     return $div;
 }
 
-// make a checkout link
-function makeCheckoutLink($visitID) {
-    $link = "<a href='OVLcheckinout.php?vid=" . $visitID . "'>"
-        . "<img src='redx.png' alt='Checkout'> "
-        . "</a>";
-    return $link;
-}
 
 // make a new badge link
 function makeNewBadgeLink($visitID) {

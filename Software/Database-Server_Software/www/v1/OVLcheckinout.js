@@ -4,6 +4,33 @@
 // By Jim Schrempp
 //
 
+
+// This routine is called when the page is loaded
+// to set the correct header based on the type of form this is.
+window.onload = function() {
+    var element = document.getElementById('previousvisitnum');
+    if (element) {
+        switch (element.value) {
+            case "-1":
+                document.getElementById('signin').style.display = 'block';
+                document.getElementById('submitbutton').value = "Check In";
+                break;
+            case "-2":
+                document.getElementById('registeronly').style.display = 'block';
+                document.getElementById('submitbutton').value = "Pre Register";
+                break;
+            default:
+                document.getElementById('signin').style.display = 'block';
+                document.getElementById('previousvisitnum').value = -1;
+                document.getElementById('submitbutton').value = "Check In";
+                break;
+        }
+    } else {
+        die ("Error: previousVisitNum not found");
+    }
+};
+
+
 // This routine adds listeners to the form so that clicking
 // a button will come here
 document.addEventListener('DOMContentLoaded', function(){
@@ -62,8 +89,12 @@ document.addEventListener('DOMContentLoaded', function(){
                 } else {
                     // Clear the form
                     this.reset();
-                    alertUser("You have been checked in. Thank you.", "green", 2000);
-                    window.location.href = "https://makernexus.org";
+                    if (this.elements['previousvisitnum'].value == -2) {
+                        alertUser("You have been registered. Thank you.", "green", 2000);
+                    } else {
+                        alertUser("You have been checked in. Thank you.", "green", 2000);
+                        window.location.href = "https://makernexus.org";
+                    }
                 }
             }
         })

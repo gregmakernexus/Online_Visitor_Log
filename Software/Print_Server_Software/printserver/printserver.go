@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,14 +15,28 @@ import (
 	"time"
 
 	name "github.com/goombaio/namegenerator"
+	"example.com/debug"
+	clientinfo "example.com/clientinfo"
 )
 
 var dbURL = flag.String("db", "https://rfid.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
 var test = flag.Bool("test", false, "Label test to print labels with random names")
 var printDelay = flag.Int("delay", 0, "Delay between print commands")
-var printFilter = flag.String("filter", "a-z", "Filter on last name. eg. a-f")
+var logLevel = flag.Int("V", 0, "Logging level for debug messages")
+var clearCache = flag.Bool("clear", false, "Clear database information cache")
+
+// So we can have one set of code we have a set of filters to allow the following scenarios
+//  1. --filter=printers.  Multiple printers for a large event.  We segment the alphabet and only print the specified range
+//  2. --filter=camp.      Summer camp.
+//  3. no filter specified This is the printer at the normal mod station.  If we are using #1 above.  This printer
+//     must be power down.
+var filterType = flag.String("filter", "", "Special filter. printers | camp")
+var printRange = flag.String("range", "", "Multiple printers. Print labels where last name starts with. eg. a-f")
+var campName = flag.String("name", "Kids Camp", "specify event name to print on badge")
+
 var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
 var n name.Generator
+var log *debug.DebugClient
 
 type visitor map[string]any
 type visitorList struct {
@@ -105,7 +118,7 @@ func newLabelClient() *labelClient {
 	return c
 }
 
-func (c *labelClient) dbRead(url string) ([]visitor, error) {
+func (c *labelClient) urlRead(url string) ([]visitor, error) {
 	// Do the http.get
 	labels := new(visitorList)
 	html, err := c.connection.Get(url)
@@ -139,31 +152,33 @@ func (c *labelClient) print(info visitor) error {
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
-	visitorType := map[string]string{
-		"tour":            "Visitor (tour)",
-		"classOrworkshop": "Class/Workshop",
-		"makernexusevent": "Special Event",
-		"makernexuscamp":  "Kids Camp",
-		"volunteering":    "Volunteer",
-		"guest":           "Visitor",
-		"forgotbadge":     "Member",
-		"other":           "Visitor",
-	}
+	reason := ""
 	// loop through each field and update the label
 	for key, data := range info {
 		log.Println("key:", key, " data:", data)
 		// do a special edit to make the reason for visit readable
 		if key == "visitReason" {
-			// if visitReason exists then replace visitor
-			if reason, exist := visitorType[data.(string)]; exist {
-				temp = strings.Replace(temp, "Visitor", reason, -1)
-				continue
+			// The visitReason could be any or all of the radio buttons so we
+			// need to check each of the possiblities
+			switch {
+			case strings.Contains(data.(string), "classOrworkshop"):
+				reason = "Class/Workshop"
+			case strings.Contains(data.(string), "makernexusevent"):
+				reason = "Special Event"
+			case strings.Contains(data.(string), "makernexuscamp"):
+				reason = *campName
+			case strings.Contains(data.(string), "volunteering"):
+				reason = "Volunteer"
+			case strings.Contains(data.(string), "forgotbadge"):
+				reason = "Member"
+			case strings.Contains(data.(string), "guest"),
+				strings.Contains(data.(string), "tour"),
+				strings.Contains(data.(string), "other"):
+				reason = "Visitor"
+
 			}
-			// unknown visitREason so replace Visitor with the database value
-			if data.(string) != "" {
-				temp = strings.Replace(temp, "Visitor", data.(string), -1)
-				continue
-			}
+			temp = strings.Replace(temp, "Visitor", reason, -1)
+			continue
 		}
 		dataType := fmt.Sprintf("%T", data)
 		switch dataType {
@@ -173,8 +188,6 @@ func (c *labelClient) print(info visitor) error {
 			temp = strings.Replace(temp, "${"+key+"}", strconv.Itoa(data.(int)), -1)
 		}
 	}
-	// Replace the Visitor string with a Reason for visit.  The strings from the
-	// database are criptic at best.  So, they must be transformed into something for the badge
 
 	// cd to the Mylabel directory so we can write files
 	if err := os.Chdir(c.labelDir); err != nil {
@@ -247,7 +260,25 @@ func newFilter(filter string) (map[string]int, error) {
 	return filterMap, nil
 }
 
-func okToPrint(filterMap map[string]int, lastName string) bool {
+func okToPrint(filterMap map[string]int, label visitor) bool {
+	// If not filtering, don't print camps
+	switch {
+	case isEmpty(*filterType): {
+		for key, data := range label {
+			log.Println("key:", key, " data:", data)
+			// do a special edit to make the reason for visit readable
+			if isEmpty(*filterType) && key == "visitReason" && strings.Contains(data.(string), "makernexuscamp") {
+				fmt.Printf("skipping label because this printer is not a camp printer")
+				return false
+			}
+		}
+		return true
+	}
+	case *filterType == "camp":
+	}	
+	
+
+	lastName := label["nameLast"].(string)
 	firstChar := lastName[0:1]
 	firstChar = strings.ToLower(firstChar)
 	if _, exists := filterMap[firstChar]; !exists {
@@ -256,9 +287,26 @@ func okToPrint(filterMap map[string]int, lastName string) bool {
 	}
 	return true
 }
+
 func main() {
 	// init command line flags
 	flag.Parse()
+	
+	
+	var err error
+	log = debug.NewLogClient(*logLevel)
+	// delete config file and re-input data
+	if *clearCache {
+		clientinfo.clearConfig()
+	}
+	clients, err := clientinfo.newClientInfo(log)
+	if err != nil {
+		log.V(0).Fatal(err)
+	}
+	log.V(2).Println("resulting 2d slice:")
+	for _,rec := range clients {
+		log.V(2).Println(rec)
+	}
 	//  Create the label client
 	c := newLabelClient()
 	// Print program banners
@@ -267,11 +315,10 @@ func main() {
 	// Print Test Page
 	c.printTestPages()
 
-	var err error
 	var labels []visitor
 	// Generate the filter for the last name.
 	var filterMap map[string]int
-	if filterMap, err = newFilter(*printFilter); err != nil {
+	if filterMap, err = newFilter(*printRange); err != nil {
 		fmt.Printf("Error generating filter map:%v error:%v\n", filterMap, err)
 		log.Fatal(3)
 	}
@@ -280,9 +327,9 @@ func main() {
 		n = name.NewNameGenerator(seed)
 	}
 	for i := 1; ; i++ {
-		switch *test {
+		switch {
 		// if we are testing generate a fake name and process it
-		case true:
+		case *test:
 			randomName := n.Generate()
 			n := strings.Split(randomName, "-")
 			label := make(visitor)
@@ -291,12 +338,18 @@ func main() {
 			label["URL"] = "https://makernexus.org;laskdfjas;ldkfjas;ldfkjas;ldfkjaasdf"
 			labels = make([]visitor, 0)
 			labels = append(labels, label)
-		// not testing.  Read the database and process
-		case false:
-			// read databse to see if there are labels to print
-			if labels, err = c.dbRead(*dbURL); err != nil {
+		// This is a normal print server.  Get labels from web server
+		case !*test && isEmpty(*filterType):
+			if labels, err = c.urlRead(*dbURL); err != nil {
 				return
 			}
+		// This is a summer camp printer
+		case !*test && isEmpty(*printRange):
+			// read database to see if there are labels to print
+			if labels, err = c.urlRead(*dbURL); err != nil {
+				return
+			}
+
 		} //switch
 		// if there are no labels then print a dot and continue
 		if len(labels) == 0 {
@@ -307,8 +360,8 @@ func main() {
 		// print all the labels return from database
 		for _, label := range labels {
 			// Filter label prints by last name
-			lastName := label["nameLast"].(string)
-			if okToPrint(filterMap, lastName) {
+
+			if okToPrint(filterMap, label) {
 				c.print(label)
 			}
 			if *printDelay == -1 {
@@ -321,4 +374,8 @@ func main() {
 		} // for
 
 	} // for infinite loop
+}
+
+func isEmpty(s string) bool {
+	return len(s) == 0
 }

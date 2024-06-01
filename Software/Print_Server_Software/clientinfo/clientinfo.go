@@ -5,23 +5,20 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
-	// "encoding/csv"e
-	"flag"
+	// "encoding/csv"
+
 	"os"
 	"path/filepath"
 
-	// "strings"
-
+	"example.com/debug"
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/gregmakernexus/sheets-utilities"
 )
 
-var clear = flag.Bool("clear", false, "Delete and reenter DB and sheet info")
-
 var log *debug.DebugClient
-var data [][]string
+var data map[string][]string
 
 type visitor_config struct {
 	DBName           string `json:"dbName"`
@@ -32,7 +29,7 @@ type visitor_config struct {
 	SheetName        string `json:"Sheet"`
 }
 
-func newClientInfo(log *debug.DebugClient) (*[][]string, error) {
+func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	// Read config. if not there create it
 	c := new(visitor_config)
 	if err := c.dirSetup(); err != nil {
@@ -50,6 +47,9 @@ func newClientInfo(log *debug.DebugClient) (*[][]string, error) {
 		log.V(0).Fatalf("Error reading config file")
 	}
 	err = json.Unmarshal(byteJson, c)
+	if err != nil {
+		log.V(0).Fatal(err)
+	}
 	/*--------------------------------------------------------------
 	 * Open the database.  Parameters were collected in the config
 	 *--------------------------------------------------------------*/
@@ -76,30 +76,46 @@ func newClientInfo(log *debug.DebugClient) (*[][]string, error) {
 	}
 
 	/*------------------------------------------------------
-	 *  Read the ovl_list table.
+	 *  Read the clientinfo table.
 	 *-----------------------------------------------------*/
 	r, err = db.Query("SELECT * FROM clientInfo")
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
+	/*------------------------------------------------------
+	 *  Get the column names and find first and last name columns
+	 *-----------------------------------------------------*/
 	cols, err := r.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("error importing database columns: %v", err)
 	}
-	/*----------------------------------------------------------
-	 * Convert the object returned from db to a 2d slice.
-	 *---------------------------------------------------------*/
-	data = make([][]string, 0)
-	data = append(data, cols)
+	lastIndex := -1
+	firstIndex := -1
+	for i,d := range cols {
+		switch d {
+			case "lastName":
+				lastIndex = i
+			case "firstName":
+				firstIndex = i
+		}		
+	}
 	fmt.Println(cols)
+	/*----------------------------------------------------------
+	 * Convert the object returned from db to a map for lookup later
+	 * the map key is lastName+firstName (lower case)
+	 *-----------------------------------------------------------
+	 * NOTE: the clientinfo table is a log of rfid scans. there will be 
+	 * duplicate entries by design
+	 *---------------------------------------------------------*/
+	data = make(map[string][]string)
+	data["header"] = cols
 	// Result is your slice string.
 	rawResult := make([][]byte, len(cols))
 	dest := make([]interface{}, len(cols)) // A temporary interface{} slice
 	for i := range rawResult {
 		dest[i] = &rawResult[i] // Put pointers to each string in the interface slice
 	}
-
-	for r.Next() {
+    for r.Next() {
 		err = r.Scan(dest...)
 		if err != nil {
 			return nil, fmt.Errorf("error importing database record:%v", err)
@@ -112,14 +128,15 @@ func newClientInfo(log *debug.DebugClient) (*[][]string, error) {
 				result[i] = string(raw)
 			}
 		}
-		data = append(data, result)
+		key := strings.ToLower(result[lastIndex]+result[firstIndex])
+		data[key] = result
 	}
 
-	return &data, err
+	return data, err
 }
 
 // clearConfig creates directories and deletes config file if it exists
-func clearConfig() error {
+func ClearConfig() error {
 	// Read config. if not there create it
 	c := new(visitor_config)
 	if err := c.dirSetup(); err != nil {

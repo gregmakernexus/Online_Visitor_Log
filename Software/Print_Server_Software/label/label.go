@@ -1,0 +1,290 @@
+// label takes the data form OVL database and exports it to .glabels file
+package label
+
+import (
+	"crypto/tls"
+	"encoding/json"
+
+	//"flag"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"example.com/debug"
+)
+
+// So we can have one set of code we have a set of filters to allow the following scenarios
+//  1. --filter=printers.  Multiple printers for a large event.  We segment the alphabet and only print the specified range
+//  2. --filter=camp.      Summer camp.
+//  3. no filter specified This is the printer at the normal mod station.  If we are using #1 above.  This printer
+//     must be power down.
+var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
+var log *debug.DebugClient
+
+type Visitor map[string]any
+type VisitorList struct {
+	Create string `json:"dateCreated"`
+	Data   struct {
+		Visitors []Visitor `json:"visitors"`
+	} `json:"data"`
+}
+
+type Printer struct {
+	LabelTemplate       string
+	PrinterModel        string
+	PrinterManufacturer string
+}
+type LabelClient struct {
+	LabelDir   string
+	connection *http.Client
+	Printers   []Printer
+	Current    int
+}
+
+var clients map[string][]string
+
+func NewLabelClient() *LabelClient {
+	c := new(LabelClient)
+	var labelByte []byte
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("Error getting user home directory:%v\n", err)
+	}
+	// Read the label file into a string
+	c.LabelDir = filepath.Join(home, "Mylabels")
+	if err := os.Chdir(c.LabelDir); err != nil {
+		fmt.Printf("Label directory does not exist. path:%v\n", c.LabelDir)
+		return nil
+	}
+	// Find the CUPS printer
+	out, err := exec.Command("lpstat", "-a").CombinedOutput()
+	if err != nil {
+		log.Fatalf("exec.Command() failed error:%v\n", err)
+	}
+	lines := strings.Split(string(out), "\n")
+	if len(lines) == 0 {
+		log.Fatalf("No Printers Found")
+	}
+	printers := make([]Printer, 0)
+
+	for _, line := range lines {
+		tokens := strings.Split(line, " ")
+		if len(tokens) < 2 {
+			continue
+		}
+		var p Printer
+		p.PrinterModel = strings.ToUpper(tokens[0])
+		switch {
+		case strings.Contains(p.PrinterModel, "QL"):
+			p.PrinterManufacturer = "BROTHER"
+		case strings.Contains(p.PrinterModel, "DYMO"):
+			p.PrinterManufacturer = "DYMO"
+		default:
+			continue
+		} // switch
+		fmt.Printf("Using a %v printer.  Model:%v\n", p.PrinterManufacturer, p.PrinterModel)
+		labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
+		if err != nil {
+			log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+		}
+		p.LabelTemplate = string(labelByte)
+		printers = append(printers, p)
+	} // for
+	c.Printers = printers
+	c.Current = 0
+	// Create the http client with no security this is to access the database
+	// website
+	c.connection = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+	return c
+}
+
+func (c *LabelClient) ReadOVL(url string) ([]Visitor, error) {
+	// Do the http.get
+	labels := new(VisitorList)
+	html, err := c.connection.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// extract the body from the http packet
+	results, err := io.ReadAll(html.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	html.Body.Close()
+	// unmarshall the json object
+	if err := json.Unmarshal(results, labels); err != nil {
+		return nil, err
+	}
+	return labels.Data.Visitors, nil
+
+}
+func (c *LabelClient) ExportToGlabels(info Visitor) error {
+	// p := c.Printers[c.Current]
+	// c.Current++
+	// if len(c.Printers) >= c.Current {
+	// 	c.Current = 0
+	// }
+
+	var temp string = c.Printers[c.Current].LabelTemplate
+	// Get the date right now and update the label
+	t := time.Now()
+	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
+	temp = strings.Replace(temp, "${Date}", nowDate, -1)
+	// Find the first and last name
+	var first, last, reason string
+	for key, data := range info {
+		switch key {
+		case "nameFirst":
+			temp = strings.Replace(temp, "${nameFirst}", data.(string), -1)
+			first = data.(string)
+		case "nameLast":
+			temp = strings.Replace(temp, "${nameFirst}", data.(string), -1)
+			last = data.(string)
+		case "visitREason":
+			switch {
+			case strings.Contains(data.(string), "classOrworkshop"):
+				reason = "Class/Workshop"
+			case strings.Contains(data.(string), "makernexusevent"):
+				reason = "Special Event"
+			case strings.Contains(data.(string), "makernexuscamp"):
+				reason = "Kids Camp"
+			case strings.Contains(data.(string), "volunteering"):
+				reason = "Volunteer"
+			case strings.Contains(data.(string), "forgotbadge"):
+				reason = "Forgot Badge"
+			case strings.Contains(data.(string), "guest"),
+				strings.Contains(data.(string), "tour"),
+				strings.Contains(data.(string), "other"):
+				reason = "Visitor"
+
+			}
+
+		default:
+			dataType := fmt.Sprintf("%T", data)
+			switch dataType {
+			case "string":
+				temp = strings.Replace(temp, "${"+key+"}", data.(string), -1)
+			case "int":
+				temp = strings.Replace(temp, "${"+key+"}", strconv.Itoa(data.(int)), -1)
+			}
+		}
+	}
+	// We have scanned the entire OVL record.  Now do special lookup
+	// when the person forgot a badge.  Check if member or staff
+	if reason == "Forgot Badge" {
+		key := strings.ToLower(last + first)
+		if c, exist := clients[key]; exist {
+			reason = "Member"
+			s := strings.ToLower(c[9])
+			if strings.Contains(s, "staff") {
+				reason = "Staff"
+			}
+		}
+	}
+	temp = strings.Replace(temp, "Visitor", reason, -1)
+
+	// cd to the Mylabel directory so we can write files
+	if err := os.Chdir(c.LabelDir); err != nil {
+		log.Fatal("Label directory does not exist.")
+	}
+	// delete and write the temp.glables file
+	os.Remove("temp.glabels")
+	if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
+		log.Fatalf("Error writing label file error:%v\n", err)
+	}
+	return nil
+}
+
+// Print a test page to each printer
+func (c *LabelClient) ExportTestToGlabels() error {
+	for _, p := range c.Printers {
+		var temp string = p.LabelTemplate
+		// Get the date right now and update the label
+		t := time.Now()
+		nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
+		temp = strings.Replace(temp, "${Date}", nowDate, -1)
+		temp = strings.Replace(temp, "${nameFirst}", "WELCOME TO MAKERNEXUS", -1)
+		temp = strings.Replace(temp, "${nameLast}", "", -1)
+		temp = strings.Replace(temp, "Visitor", "Test Label", -1)
+		// cd to the Mylabel directory so we can write files
+		if err := os.Chdir(c.LabelDir); err != nil {
+			log.Fatal("Label directory does not exist.")
+		}
+		// delete and write the temp.glables file
+		os.Remove("temp.glabels")
+		if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
+			log.Fatalf("Error writing label file error:%v\n", err)
+		}
+
+	}
+	return nil
+}
+
+// func newFilter(filter string) (map[string]int, error) {
+// 	alpha := "abcdefghijklmnopqrstuvwxyz"
+// 	filter = strings.ReplaceAll(filter, " ", "")
+// 	filterSplit := strings.Split(filter, "-")
+// 	if len(filterSplit) != 2 && len(filterSplit[0]) != 1 && len(filterSplit[1]) != 1 {
+// 		return nil, fmt.Errorf("empty or invalid filter:%v", filter)
+// 	}
+// 	var low, high int
+// 	if low = strings.Index(alpha, strings.ToLower(filterSplit[0])); low == -1 {
+// 		return nil, fmt.Errorf("low filter must be alpha:%v", filter)
+// 	}
+// 	if high = strings.Index(alpha, strings.ToLower(filterSplit[1])); high == -1 {
+// 		return nil, fmt.Errorf("high filter must be alpha:%v", filter)
+// 	}
+
+// 	temp := min(low, high)
+// 	high = max(low, high)
+// 	low = temp
+// 	filterMap := make(map[string]int)
+// 	for i := low; i < high+1; i++ {
+// 		filterMap[string(alpha[i])] = 0
+// 	}
+// 	return filterMap, nil
+// }
+
+// func okToPrint(filterMap map[string]int, label Visitor) bool {
+// 	// If not filtering, don't print camps
+// 	switch {
+// 	case isEmpty(*filterType):
+// 		{
+// 			for key, data := range label {
+// 				log.Println("key:", key, " data:", data)
+// 				// do a special edit to make the reason for visit readable
+// 				if isEmpty(*filterType) && key == "visitReason" && strings.Contains(data.(string), "makernexuscamp") {
+// 					fmt.Printf("skipping label because this printer is not a camp printer")
+// 					return false
+// 				}
+// 			}
+// 			return true
+// 		}
+// 	case *filterType == "camp":
+// 	}
+
+// 	lastName := label["nameLast"].(string)
+// 	firstChar := lastName[0:1]
+// 	firstChar = strings.ToLower(firstChar)
+// 	if _, exists := filterMap[firstChar]; !exists {
+// 		fmt.Printf("skipping label.  lastName:%v filtermap:%v\n", lastName, filterMap)
+// 		return false
+// 	}
+// 	return true
+// }
+
+// func isEmpty(s string) bool {
+// 	return len(s) == 0
+// }

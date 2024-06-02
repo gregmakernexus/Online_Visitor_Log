@@ -52,7 +52,7 @@ func main() {
 	}
 	
 	//  Create the label client
-	l := label.NewLabelClient()
+	l := label.NewLabelClient(log)
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	// fmt.Println("Label Print Delay is:", *printDelay)

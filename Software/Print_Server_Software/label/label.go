@@ -49,7 +49,8 @@ type LabelClient struct {
 
 var clients map[string][]string
 
-func NewLabelClient() *LabelClient {
+func NewLabelClient(log *debug.DebugClient) *LabelClient {
+	log.V(1).Printf("NewLabelClient started\n")
 	c := new(LabelClient)
 	var labelByte []byte
 	home, err := os.UserHomeDir()
@@ -59,11 +60,27 @@ func NewLabelClient() *LabelClient {
 	// Read the label file into a string
 	c.LabelDir = filepath.Join(home, "Mylabels")
 	if err := os.Chdir(c.LabelDir); err != nil {
-		fmt.Printf("Label directory does not exist. path:%v\n", c.LabelDir)
+		log.V(0).Printf("Label directory does not exist. path:%v\n", c.LabelDir)
 		return nil
 	}
-	// Find the CUPS printer
-	out, err := exec.Command("lpstat", "-a").CombinedOutput()
+	// scan for the label printer in usb ports (brother or dymo)
+	out, err := exec.Command("lsusb").CombinedOutput()
+	log.V(2).Printf("lsusb exec.command error:%v\n", string(out))
+	if err != nil {
+		log.Fatalf("lsusb exec.Command() failed error:%v\n", err)
+	}
+	buf := string(out)
+	var p Printer
+	switch {
+	case strings.Contains(buf, "BROTHER"):
+		p.PrinterManufacturer = "BROTHER"
+	case strings.Contains(buf, "DYMO"):
+		p.PrinterManufacturer = "DYMO"
+	}
+	log.V(2).Printf("Printer Manufacturer:%v\n", p.PrinterManufacturer)
+	// Find out if cups driver is installed for glabels.  lpstat will
+	// show the printer as ready even if it is not plugged in.
+	out, err = exec.Command("lpstat", "-a").CombinedOutput()
 	if err != nil {
 		log.Fatalf("exec.Command() failed error:%v\n", err)
 	}
@@ -72,33 +89,31 @@ func NewLabelClient() *LabelClient {
 		log.Fatalf("No Printers Found")
 	}
 	printers := make([]Printer, 0)
-
+	i := 0
 	for _, line := range lines {
+		log.V(2).Printf("lpstat:%v\n", line)
 		tokens := strings.Split(line, " ")
 		if len(tokens) < 2 {
 			continue
 		}
-		var p Printer
-		p.PrinterModel = strings.ToUpper(tokens[0])
 		switch {
-		case strings.Contains(p.PrinterModel, "QL"):
-			p.PrinterManufacturer = "BROTHER"
-		case strings.Contains(p.PrinterModel, "DYMO"):
-			p.PrinterManufacturer = "DYMO"
-		default:
-			continue
-		} // switch
-		fmt.Printf("Using a %v printer.  Model:%v\n", p.PrinterManufacturer, p.PrinterModel)
-		labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
-		if err != nil {
-			log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+		case p.PrinterManufacturer == "BROTHER" && strings.Contains(tokens[0], "QL"),
+			p.PrinterManufacturer == "DYMO" && strings.Contains(tokens[0], "LabelWriter"):
+			p.PrinterModel = tokens[0]
+			c.Current = i
+			labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
+			if err != nil {
+				log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+			}
+			p.LabelTemplate = string(labelByte)
+			log.V(2).Printf("add printer [%v:%v]\n", p.PrinterManufacturer,p.PrinterModel)
+			printers = append(printers, p)
+			i++
 		}
-		p.LabelTemplate = string(labelByte)
-		printers = append(printers, p)
 	} // for
 	c.Printers = printers
-	c.Current = 0
-	// Create the http client with no security this is to access the database
+	
+	// Create the http client with no security this is to access the OVL database
 	// website
 	c.connection = &http.Client{
 		Transport: &http.Transport{
@@ -107,6 +122,7 @@ func NewLabelClient() *LabelClient {
 			},
 		},
 	}
+	log.V(1).Printf("Return NewLabelClient\n")
 	return c
 }
 

@@ -25,7 +25,7 @@ import (
 //  2. --filter=camp.      Summer camp.
 //  3. no filter specified This is the printer at the normal mod station.  If we are using #1 above.  This printer
 //     must be power down.
-var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
+var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
 var log *debug.DebugClient
 
 type Visitor map[string]any
@@ -160,14 +160,13 @@ func (c *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	return labels.Data.Visitors, nil
 
 }
-func (c *LabelClient) ExportToGlabels(info Visitor) error {
+func (c *LabelClient) ExportToGlabels(info Visitor) (Printer, error) {
 	log := c.Log
-	// p := c.Printers[c.Current]
-	// c.Current++
-	// if len(c.Printers) >= c.Current {
-	// 	c.Current = 0
-	// }
-
+	/*---------------------------------------------------------------
+	* If there is multiple printers, choose printer in a round robin
+	* fashion
+	*---------------------------------------------------------------*/ 
+	p := c.Printers[c.Current]
 	var temp string = c.Printers[c.Current].LabelTemplate
 	// Get the date right now and update the label
 	t := time.Now()
@@ -178,16 +177,16 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 	for key, data := range info {
 		log.V(0).Printf("key:%v\n",key)
 		switch key {
-		case "firstName":
-		    log.V(0).Printf("found first:%v\n",data.(string))
+		case "nameFirst":
+		    log.V(1).Printf("found first:%v\n",data.(string))
 			temp = strings.Replace(temp, "${nameFirst}", data.(string), -1)
 			first = data.(string)
-		case "lastName":
-			log.V(0).Printf("found last:%v\n",data.(string))
+		case "nameLast":
+			log.V(1).Printf("found last:%v\n",data.(string))
 			temp = strings.Replace(temp, "${nameLast}", data.(string), -1)
 			last = data.(string)
 		case "visitReason":
-			log.V(0).Printf("visitReason:%v\n",data.(string))
+			log.V(1).Printf("visitReason:%v\n",data.(string))
 			switch {
 			case strings.Contains(data.(string), "classOrworkshop"):
 				reason = "Class/Workshop"
@@ -204,7 +203,7 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 				strings.Contains(data.(string), "other"):
 				reason = "Visitor"
 			}
-			log.V(0).Printf("Reason:%v\n",reason)
+			log.V(1).Printf("Reason:%v\n",reason)
 
 		default:
 			dataType := fmt.Sprintf("%T", data)
@@ -220,17 +219,17 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 	// when the person forgot a badge.  Check if member or staff
 	if reason == "Forgot Badge" {
 		key := strings.ToLower(last + first)
-		log.V(0).Printf("forgot badge lookup:%v\n",key)
+		log.V(1).Printf("forgot badge lookup:%v\n",key)
 		reason = "Visitor"
 		if c, exist := clients[key]; exist {
-			log.V(0).Printf("lookup was found:%v length:%v\n",c,len(c))
+			log.V(1).Printf("lookup was found:%v length:%v\n",c,len(c))
 			for i,t := range c {
-			  log.V(0).Printf("clientinfo %v:%v\n",i,t)	
+			  log.V(1).Printf("clientinfo %v:%v\n",i,t)	
 			}
 			reason = "Member"
 			s := strings.ToLower(c[7])
 			if strings.Contains(s, "staff") {
-				log.V(0).Printf("is a staff member")
+				log.V(1).Printf("is a staff member")
 				reason = "Staff"
 			}
 		}
@@ -239,14 +238,19 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 
 	// cd to the Mylabel directory so we can write files
 	if err := os.Chdir(c.LabelDir); err != nil {
-		log.Fatal("Label directory does not exist.")
+		return p, fmt.Errorf("%v directory does not exist",c.LabelDir)
 	}
 	// delete and write the temp.glables file
 	os.Remove("temp.glabels")
 	if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
-		log.Fatalf("Error writing label file error:%v\n", err)
+		return p, fmt.Errorf("write to temp.glabels error:%v\n", err)
 	}
-	return nil
+	// Successful export to file.  Bump to the next printer
+	c.Current++
+	if len(c.Printers) >= c.Current {
+		c.Current = 0
+	}
+	return p, nil
 }
 
 // Print a test page to each printer

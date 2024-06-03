@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"example.com/debug"
+	client "example.com/clientinfo"
 )
 
 // So we can have one set of code we have a set of filters to allow the following scenarios
@@ -45,6 +46,7 @@ type LabelClient struct {
 	connection *http.Client
 	Printers   []Printer
 	Current    int
+	Log        *debug.DebugClient
 }
 
 var clients map[string][]string
@@ -52,6 +54,7 @@ var clients map[string][]string
 func NewLabelClient(log *debug.DebugClient) *LabelClient {
 	log.V(1).Printf("NewLabelClient started\n")
 	c := new(LabelClient)
+	c.Log = log
 	var labelByte []byte
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -122,12 +125,23 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 			},
 		},
 	}
+	// load the clientinfo table into map for lookup
+	clients, err = client.NewClientInfo(log)
+	if err != nil {
+		log.V(0).Fatal(err)
+	}
+	log.V(2).Println("client map:")
+	for key, rec := range clients {
+		log.V(2).Println(key, rec)
+	}
+	
 	log.V(1).Printf("Return NewLabelClient\n")
 	return c
 }
 
 func (c *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	// Do the http.get
+	log := c.Log
 	labels := new(VisitorList)
 	html, err := c.connection.Get(url)
 	if err != nil {
@@ -147,6 +161,7 @@ func (c *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 
 }
 func (c *LabelClient) ExportToGlabels(info Visitor) error {
+	log := c.Log
 	// p := c.Printers[c.Current]
 	// c.Current++
 	// if len(c.Printers) >= c.Current {
@@ -161,14 +176,18 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 	// Find the first and last name
 	var first, last, reason string
 	for key, data := range info {
+		log.V(0).Printf("key:%v\n",key)
 		switch key {
-		case "nameFirst":
+		case "firstName":
+		    log.V(0).Printf("found first:%v\n",data.(string))
 			temp = strings.Replace(temp, "${nameFirst}", data.(string), -1)
 			first = data.(string)
-		case "nameLast":
-			temp = strings.Replace(temp, "${nameFirst}", data.(string), -1)
+		case "lastName":
+			log.V(0).Printf("found last:%v\n",data.(string))
+			temp = strings.Replace(temp, "${nameLast}", data.(string), -1)
 			last = data.(string)
-		case "visitREason":
+		case "visitReason":
+			log.V(0).Printf("visitReason:%v\n",data.(string))
 			switch {
 			case strings.Contains(data.(string), "classOrworkshop"):
 				reason = "Class/Workshop"
@@ -184,8 +203,8 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 				strings.Contains(data.(string), "tour"),
 				strings.Contains(data.(string), "other"):
 				reason = "Visitor"
-
 			}
+			log.V(0).Printf("Reason:%v\n",reason)
 
 		default:
 			dataType := fmt.Sprintf("%T", data)
@@ -201,10 +220,17 @@ func (c *LabelClient) ExportToGlabels(info Visitor) error {
 	// when the person forgot a badge.  Check if member or staff
 	if reason == "Forgot Badge" {
 		key := strings.ToLower(last + first)
+		log.V(0).Printf("forgot badge lookup:%v\n",key)
+		reason = "Visitor"
 		if c, exist := clients[key]; exist {
+			log.V(0).Printf("lookup was found:%v length:%v\n",c,len(c))
+			for i,t := range c {
+			  log.V(0).Printf("clientinfo %v:%v\n",i,t)	
+			}
 			reason = "Member"
-			s := strings.ToLower(c[9])
+			s := strings.ToLower(c[7])
 			if strings.Contains(s, "staff") {
+				log.V(0).Printf("is a staff member")
 				reason = "Staff"
 			}
 		}

@@ -16,7 +16,7 @@ import (
 	"testing"
 	//"time"
 
-	client "example.com/clientinfo"
+	
 	"example.com/debug"
 	label "example.com/label"
 	// name "github.com/goombaio/namegenerator"
@@ -28,8 +28,9 @@ import (
 //	dateCheckoutLocal,elapsedHours,hasSignedWaiver,howDidYouHear,
 //	labelNeedsPrinting, notes, okToEmail]
 var ovl = []label.Visitor{
-	{"firstName": "Kelly", "lastName": "Yamanishi", "visitReason:": "Forgot Badge"},
-	{"firstName": "Greg", "lastName": "Yamanishi", "visitReason:": "Forgot Badge"},
+	{"firstName": "Kelly", "lastName": "Yamanishi", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
+	{"firstName": "Greg",  "lastName": "Yamanishi", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
+	{"firstName": "MyNameisreallylong",  "lastName": "lastnameistoolong", "visitReason": "tour","URL": "https://makernexus.org"},
 }
 
 func TestAdd(t *testing.T) {
@@ -37,20 +38,7 @@ func TestAdd(t *testing.T) {
 	flag.Parse()
 	var err error
 	log = debug.NewLogClient(*logLevel)
-	// delete config file and re-input DB data
-	if *clearCache {
-		client.ClearConfig()
-	}
-	// load the clientinfo table into map for lookup
-	clients, err = client.NewClientInfo(log)
-	if err != nil {
-		log.V(0).Fatal(err)
-	}
-	log.V(2).Println("client map:")
-	for key, rec := range clients {
-		log.V(2).Println(key, rec)
-	}
-
+	
 	//  Create the label client
 	l := label.NewLabelClient(log)
 	
@@ -61,7 +49,7 @@ func TestAdd(t *testing.T) {
 			log.V(0).Printf("ExportToGlabels error%v\n",err)
 		}
 		// print the label to the current printer
-		printer := fmt.Sprintf("--printer %v", l.Printers[l.Current].PrinterModel)
+		printer := fmt.Sprintf("--printer=%v", l.Printers[l.Current].PrinterModel)
 		log.V(0).Printf("printer:%v\n", printer)
 		if out, err := exec.Command("glabels-batch-qt", printer, "temp.glabels").CombinedOutput(); err != nil {
 			log.Fatalf("glabels-batch-qt exec.Command failed error:%v\noutput:%v\n", err, string(out))

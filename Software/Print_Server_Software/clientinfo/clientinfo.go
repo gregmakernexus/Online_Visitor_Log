@@ -56,7 +56,7 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	// @tcp(localhost:5555)/dbname?tls=skip-verify&autocommit=true
 	dataSource := fmt.Sprintf("%v:%v@tcp(%v)/%v?tls=skip-verify",
 		c.Userid, c.Pass, c.URL, c.DBName)
-	log.V(0).Printf("db:%v\n", dataSource)
+	log.V(1).Printf("db:%v\n", dataSource)
 	db, err := sql.Open("mysql", dataSource)
 	if err != nil {
 		log.V(0).Fatal(err)
@@ -64,7 +64,7 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	/*---------------------------------------------------------------
 	 * Get list of tables in the database.  (not necessary for this app)
 	 *--------------------------------------------------------------*/
-	log.V(0).Printf("db open complete%v\n", db)
+	log.V(1).Printf("db open complete%v\n", db)
 	r, err := db.Query("SHOW TABLES")
 	if err != nil {
 		log.V(0).Fatal(err)
@@ -72,7 +72,7 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	var table string
 	for r.Next() {
 		r.Scan(&table)
-		fmt.Println(table)
+		log.V(1).Println(table)
 	}
 
 	/*------------------------------------------------------
@@ -99,7 +99,7 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 				firstIndex = i
 		}		
 	}
-	fmt.Println(cols)
+	log.V(1).Println(cols)
 	/*----------------------------------------------------------
 	 * Convert the object returned from db to a map for lookup later
 	 * the map key is lastName+firstName (lower case)

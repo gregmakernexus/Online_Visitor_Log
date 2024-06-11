@@ -1,23 +1,13 @@
 package main
 
 import (
-	// "crypto/tls"
-	// "encoding/json"
 	"flag"
 	"fmt"
-	//"io"
-	//"net/http"
-	//"os"
-	"os/exec"
-	// "path/filepath"
-	// "strconv"
-	//"strings"
-	"time"
+	// "time"
 
 	client "example.com/clientinfo"
 	"example.com/debug"
 	label "example.com/label"
-	// name "github.com/goombaio/namegenerator"
 )
 /*---------------------------------------------------------------
  * CLI parameters
@@ -32,6 +22,7 @@ var clearCache = flag.Bool("clear", false, "Clear database information cache")
 var clients map[string][]string
 var log *debug.DebugClient
 var l *label.LabelClient
+var err error
 
 func main() {
 	// init command line flags
@@ -56,7 +47,7 @@ func main() {
 	l = label.NewLabelClient(log)
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
-	// fmt.Println("Label Print Delay is:", *printDelay)
+	
 	// Print Test Page
 	l.ExportTestToGlabels()
 
@@ -67,29 +58,33 @@ func main() {
 			log.V(0).Printf("get from webserver failed. Error:%v\n", err)
 			return
 		}
-		// if there are labels, then print
-		if len(labels) > 0 {
-			if err = print(labels, l); err != nil {
-		      log.V(0).Printf("%v\n", err)
+		if len(labels) == 0 {
+			for _,p := range l.Printers {
+				if l.IsStuck(p) {
+					log.V(0).Printf("Printer is stuck:%v\n",err)
+				}
 			}
+			continue
 		}
-		time.Sleep(time.Second * time.Duration(*printDelay))
+		if err = print(labels,l);err != nil {
+		  log.V(0).Printf("%v\n",err)
+		}
+		
 	} // for infinite loop
 }
 
 func print(labels []label.Visitor, l *label.LabelClient) error {
-	// print all the labels return from database
+	// log.V(1).Printf("There are %v labels\n",len(labels))
 	for _, label := range labels {
-		// take the OVL info and store in .glables file 
-		p,err := l.ExportToGlabels(label)
-		if err != nil {
+		// take the OVL info add label to print queue 
+		if err := l.AddToLabelQueue(label); err != nil {
 			return fmt.Errorf("exporttoglabels error:%v",err)
 		}
-		// print the label to the current printer
-		// printer := fmt.Sprintf("--printer %v", p.PrinterModel)
-		if out, err := exec.Command("glabels-batch-qt", "--printer="+p.PrinterModel, "temp.glabels").CombinedOutput(); err != nil {
-			return fmt.Errorf("glabels-batch-qt --printer=%v temp.glabels\n  error:%v\n  output:%v\n", p.PrinterModel, err, out)
-		}
-	} // for each label
+	}
+	if err = l.ProcessLabelQueue(); err != nil {
+		return fmt.Errorf("processlabelqueue error:%v\n", err)
+	}
 	return nil
-}	
+}
+	
+

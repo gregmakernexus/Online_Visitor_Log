@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"testing"
+	"time"
+	// "os/exec"
 
 	
 	"example.com/debug"
@@ -17,13 +19,20 @@ import (
  * dateCheckinLocal,dateCheckoutLocal,elapsedHours,hasSignedWaiver,
  * howDidYouHear,labelNeedsPrinting, notes, okToEmail]
  *--------------------------------------------------------------------*/ 
-var ovl = []label.Visitor{
+var test1 = []label.Visitor{
 	{"nameFirst": "Kelly", "nameLast": "Yamanishi", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
 	{"nameFirst": "Greg",  "nameLast": "Yamanishi", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
-	{"nameFirst": "MyNameisreallylong",  "nameLast": "lastnameistoolong", "visitReason": "tour","URL": "https://makernexus.org"},
+	{"nameFirst": "MyNameisReallyLong",  "nameLast": "lastnameistoolong", "visitReason": "tour","URL": "https://makernexus.org"},
+	{"nameFirst": "Kid1",  "nameLast": "smith", "visitReason": "makernexuscamp","URL": "https://makernexus.org"},
+	{"nameFirst": "adult",  "nameLast": "moneybags", "visitReason": "makernexusevent","URL": "https://makernexus.org"},
 }
-
-func TestAdd(t *testing.T) {
+var test3 = []label.Visitor{
+	{"nameFirst": "Oliver", "nameLast": "Northwood", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
+	{"nameFirst": "Cara",  "nameLast": "Stoneburner", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
+	{"nameFirst": "alsootfa",  "nameLast": "mohammed", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
+	{"nameFirst": "mickey",  "nameLast": "mouse", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
+}
+func TestMain(t *testing.T) {
 	// init command line flags
 	flag.Parse()
 	
@@ -32,20 +41,33 @@ func TestAdd(t *testing.T) {
 	//  Create the label client
 	l := label.NewLabelClient(log)
 	
-	print(ovl, l)
-	// print all the labels return from database
-	//for _, label := range ovl {
-		// take the OVL info and store in .glables file
-	//	if err = l.ExportToGlabels(label);err != nil {
-	//		log.V(0).Printf("ExportToGlabels error%v\n",err)
-	//	}
-		// print the label to the current printer
-	//	printer := fmt.Sprintf("--printer=%v", l.Printers[l.Current].PrinterModel)
-	//	log.V(0).Printf("printer:%v\n", printer)
-	//	if out, err := exec.Command("glabels-batch-qt", printer, "temp.glabels").CombinedOutput(); err != nil {
-	//		log.Fatalf("glabels-batch-qt exec.Command failed error:%v\noutput:%v\n", err, string(out))
-	//	}
-	//	fmt.Printf("Hit enter to print next label>")
-	//	fmt.Scanln()
-	//} // for each label
+	//*********************************************************
+	testStart := time.Now()
+	print(test1,l)
+	if !l.WaitTillIdle(120) {
+		t.Errorf("Test1 Failed.  Printer got stuck") 
+	}
+	t.Logf("Test1 Execution Time:%v\n", time.Since(testStart))
+	
+	test2 := make([]label.Visitor,0)
+	print(test2,l)
+	checkStuck(l)
+	
+	print(test3,l)
+	if !l.WaitTillIdle(120) {
+		t.Errorf("Test3 Successful.  Timeout") 
+	}
+	
+	
+	
+	
 }
+
+func checkStuck(l *label.LabelClient) {
+	for _, p := range l.Printers {
+		if l.IsStuck(p) {
+			log.V(0).Printf("Attention: Printer is stuck:%v\n",p.PrinterModel)
+		}
+	}
+}
+

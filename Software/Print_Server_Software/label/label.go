@@ -61,7 +61,7 @@ type LabelClient struct {
 	LabelDir   string `json:"labeldir"`
 	connection *http.Client
 	Printers   map[string]Printer         `json:"printers"`
-	PrintQueue []string          `json:printqueue`
+	PrintQueue []string          `json:"printqueue"`
 	Current    int               `json:"current"`
 	URL        string            `json:"url"`
 	Reasons    []string          `json:"reasons"`

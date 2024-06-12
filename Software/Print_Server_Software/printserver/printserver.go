@@ -44,11 +44,7 @@ func main() {
 	}
 	
 	//  Create the label client
-<<<<<<< HEAD
-	l = label.NewLabelClient(log)
-=======
 	l := label.NewLabelClient(log,*dbURL)
->>>>>>> b189e80 (Store reason codes in config file)
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	
@@ -81,7 +77,7 @@ func print(labels []label.Visitor, l *label.LabelClient) error {
 	// log.V(1).Printf("There are %v labels\n",len(labels))
 	for _, label := range labels {
 		// take the OVL info add label to print queue 
-		if err := l.AddToLabelQueue(label); err != nil {
+		if err := l.ExportTestToGlabels(label); err != nil {
 			return fmt.Errorf("exporttoglabels error:%v",err)
 		}
 	}

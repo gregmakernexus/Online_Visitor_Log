@@ -58,20 +58,45 @@ type Printer struct {
 	CurrentTime         time.Time
 }
 type LabelClient struct {
-	LabelDir   string
+	LabelDir   string `json:"labeldir"`
 	connection *http.Client
+<<<<<<< HEAD
 	Printers   map[string]Printer
 	PrinterQueue []string
 	Current    int
 	Log        *debug.DebugClient
+=======
+	Printers   []Printer         `json:"printers"`
+	Current    int               `json:"current"`
+	URL        string            `json:"url"`
+	Reasons    []string          `json:"reasons"`
+	FilterList map[string]string `json:"filters"`
+>>>>>>> b189e80 (Store reason codes in config file)
 }
 
 var clients map[string][]string
+var filterList = map[string]string{
+	"unedited": "",
+	"classOrworkshop": "Class/Workshop",
+	"makernexusevent": "Special Event",
+	"camp":            "Kids Camp",
+	"volunteering":    "Volunteer",
+	"forgotbadge":     "Forgot Badge",
+	"guest":           "Visitor",
+	"tour":            "Visitor",
+	"other":           "Visitor",
+}
 
+<<<<<<< HEAD
 func NewLabelClient(log *debug.DebugClient) *LabelClient {
 	log.V(2).Printf("NewLabelClient started\n")
 	c := new(LabelClient)
 	c.Log = log
+=======
+func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
+	log.V(1).Printf("NewLabelClient started\n")
+	l := new(LabelClient)
+>>>>>>> b189e80 (Store reason codes in config file)
 	var labelByte []byte
 	c.Printers = make(map[string]Printer)
 	
@@ -79,6 +104,7 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 	if err != nil {
 		log.Fatalf("Error getting user home directory:%v\n", err)
 	}
+<<<<<<< HEAD
 	// Read the label file into a string
 	c.LabelDir = filepath.Join(home, "Mylabels")
 	if err := os.Chdir(c.LabelDir); err != nil {
@@ -86,6 +112,33 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 	}
 	
 	// list usb devices
+=======
+	// change diretory to the label directory
+	l.LabelDir = filepath.Join(home, "Documents", "Mylabels")
+	if err := os.Chdir(l.LabelDir); err != nil {
+		log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
+		return nil
+	}
+	if _, err = os.Stat("labelConfig.json"); err != nil {
+		log.V(0).Printf("Creating Configuration File")
+		l.FilterList = filterList
+		l.Reasons = make([]string, 0,20)
+		for key := range filterList {
+			l.Reasons = append(l.Reasons,key)
+		}
+		l.URL = dbURL
+		
+	} else {
+		byteJson, err := os.ReadFile("labelConfig.json")
+		if err != nil {
+			log.V(0).Fatalf("Error reading config file")
+		}
+		if err = json.Unmarshal(byteJson, l);err != nil {
+			log.V(0).Fatalf("Error unmarshall labelConfig.json")
+		}
+	}
+	// scan for the label printer in usb ports (brother or dymo)
+>>>>>>> b189e80 (Store reason codes in config file)
 	out, err := exec.Command("lsusb").CombinedOutput()
 	if err != nil {
 		log.Fatalf("exec.Command() failed error:%v\n", err)
@@ -130,6 +183,7 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 		// set manufacturer
 		p := c.Printers[model]
 		switch {
+<<<<<<< HEAD
 		case strings.Contains(model, "QL"):
 		    if brother_count <= 0 {
 				continue loop
@@ -144,6 +198,20 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 			dymo_count -= 1
 		default:
 		    continue loop
+=======
+		case p.PrinterManufacturer == "BROTHER" && strings.Contains(tokens[0], "QL"),
+			p.PrinterManufacturer == "DYMO" && strings.Contains(tokens[0], "LabelWriter"):
+			p.PrinterModel = tokens[0]
+			l.Current = i
+			labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
+			if err != nil {
+				log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+			}
+			p.LabelTemplate = string(labelByte)
+			log.V(2).Printf("add printer [%v:%v]\n", p.PrinterManufacturer, p.PrinterModel)
+			printers = append(printers, p)
+			i++
+>>>>>>> b189e80 (Store reason codes in config file)
 		}
 		
 		p.PrinterModel = model
@@ -161,17 +229,34 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 		c.Printers[model] = p
 		c.PrinterQueue = append(c.PrinterQueue,model) 
 	} // for
+<<<<<<< HEAD
 	c.Current  = 0
 	
+=======
+	l.Printers = printers
+
+	var configBuf []byte
+	if configBuf, err = json.Marshal(l); err != nil {
+		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
+	}
+	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
+		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
+	}
+	if l.Reasons[0] == "unedited" {
+	   log.V(0).Printf(`Please edit "~\Documents\Mylabels\labelConfig.json" and modify the list of reasons that will be received at this printer`)
+	   log.V(0).Fatalf("Don't forget to remove unedited from the reason")
+	}
+>>>>>>> b189e80 (Store reason codes in config file)
 	// Create the http client with no security this is to access the OVL database
 	// website
-	c.connection = &http.Client{
+	l.connection = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
 		},
 	}
+<<<<<<< HEAD
 	// load the clientinfo table into map for lookup
 	clients, err = client.NewClientInfo(log)
 	if err != nil {
@@ -184,13 +269,17 @@ func NewLabelClient(log *debug.DebugClient) *LabelClient {
 	
 	log.V(2).Printf("Return NewLabelClient\n")
 	return c
+=======
+	log.V(1).Printf("Return NewLabelClient\n")
+	return l
+>>>>>>> b189e80 (Store reason codes in config file)
 }
 
-func (c *LabelClient) ReadOVL(url string) ([]Visitor, error) {
+func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	// Do the http.get
 	log := c.Log
 	labels := new(VisitorList)
-	html, err := c.connection.Get(url)
+	html, err := l.connection.Get(url)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -207,6 +296,7 @@ func (c *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	return labels.Data.Visitors, nil
 
 }
+<<<<<<< HEAD
 func (c *LabelClient) AddToLabelQueue(info Visitor) error {
 	log := c.Log
 	if len(info) == 0 {
@@ -219,12 +309,23 @@ func (c *LabelClient) AddToLabelQueue(info Visitor) error {
 	model := c.PrinterQueue[c.Current]
 	p := c.Printers[model]
 	var temp string = c.Printers[model].LabelTemplate
+=======
+func (l *LabelClient) ExportToGlabels(info Visitor) error {
+	// p := c.Printers[c.Current]
+	// c.Current++
+	// if len(c.Printers) >= c.Current {
+	// 	c.Current = 0
+	// }
+
+	var temp string = l.Printers[l.Current].LabelTemplate
+>>>>>>> b189e80 (Store reason codes in config file)
 	// Get the date right now and update the label
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
 	// Find the first and last name
 	var first, last, reason string
+
 	for key, data := range info {
 		log.V(1).Printf("key:%v\n",key)
 		switch key {
@@ -237,6 +338,7 @@ func (c *LabelClient) AddToLabelQueue(info Visitor) error {
 			temp = strings.Replace(temp, "${nameLast}", data.(string), -1)
 			last = data.(string)
 		case "visitReason":
+<<<<<<< HEAD
 			log.V(1).Printf("visitReason:%v\n",data.(string))
 			switch {
 			case strings.Contains(data.(string), "classOrworkshop"):
@@ -256,6 +358,23 @@ func (c *LabelClient) AddToLabelQueue(info Visitor) error {
 			}
 			log.V(1).Printf("Reason:%v\n",reason)
 
+=======
+			var exist bool
+			if reason, exist = filterList[data.(string)]; !exist {
+				reason = "Visitor"
+			}
+			if reason == "Forgot Badge" {
+				key := strings.ToLower(last + first)
+				if c, exist := clients[key]; exist {
+					reason = "Member"
+					s := strings.ToLower(c[9])
+					if strings.Contains(s, "staff") {
+						reason = "Staff"
+					}
+				}
+			}
+			temp = strings.Replace(temp, "Visitor", reason, -1)
+>>>>>>> b189e80 (Store reason codes in config file)
 		default:
 			dataType := fmt.Sprintf("%T", data)
 			switch dataType {
@@ -268,6 +387,7 @@ func (c *LabelClient) AddToLabelQueue(info Visitor) error {
 	}
 	// We have scanned the entire OVL record.  Now do special lookup
 	// when the person forgot a badge.  Check if member or staff
+<<<<<<< HEAD
 	if reason == "Forgot Badge" {
 		key := strings.ToLower(last + first)
 		log.V(1).Printf("forgot badge lookup:%v\n",key)
@@ -316,12 +436,19 @@ func (c *LabelClient) AddToLabelQueue(info Visitor) error {
 	
 	return nil
 }
+=======
+>>>>>>> b189e80 (Store reason codes in config file)
 
 func (c *LabelClient) ProcessLabelQueue() (err error) {
 	log := c.Log
 	// cd to the Mylabel directory so we can write files
+<<<<<<< HEAD
 	if err := os.Chdir(c.LabelDir); err != nil {
 		return fmt.Errorf("%v directory does not exist",c.LabelDir)
+=======
+	if err := os.Chdir(l.LabelDir); err != nil {
+		log.Fatal("Label directory does not exist.")
+>>>>>>> b189e80 (Store reason codes in config file)
 	}
 	/*----------------------------------------------------------------
 	 * Print all in the queue
@@ -486,59 +613,23 @@ func (c *LabelClient) ExportTestToGlabels() error {
 	return nil
 }
 
-// func newFilter(filter string) (map[string]int, error) {
-// 	alpha := "abcdefghijklmnopqrstuvwxyz"
-// 	filter = strings.ReplaceAll(filter, " ", "")
-// 	filterSplit := strings.Split(filter, "-")
-// 	if len(filterSplit) != 2 && len(filterSplit[0]) != 1 && len(filterSplit[1]) != 1 {
-// 		return nil, fmt.Errorf("empty or invalid filter:%v", filter)
-// 	}
-// 	var low, high int
-// 	if low = strings.Index(alpha, strings.ToLower(filterSplit[0])); low == -1 {
-// 		return nil, fmt.Errorf("low filter must be alpha:%v", filter)
-// 	}
-// 	if high = strings.Index(alpha, strings.ToLower(filterSplit[1])); high == -1 {
-// 		return nil, fmt.Errorf("high filter must be alpha:%v", filter)
-// 	}
-
-// 	temp := min(low, high)
-// 	high = max(low, high)
-// 	low = temp
-// 	filterMap := make(map[string]int)
-// 	for i := low; i < high+1; i++ {
-// 		filterMap[string(alpha[i])] = 0
-// 	}
-// 	return filterMap, nil
-// }
-
-// func okToPrint(filterMap map[string]int, label Visitor) bool {
-// 	// If not filtering, don't print camps
-// 	switch {
-// 	case isEmpty(*filterType):
-// 		{
-// 			for key, data := range label {
-// 				log.Println("key:", key, " data:", data)
-// 				// do a special edit to make the reason for visit readable
-// 				if isEmpty(*filterType) && key == "visitReason" && strings.Contains(data.(string), "makernexuscamp") {
-// 					fmt.Printf("skipping label because this printer is not a camp printer")
-// 					return false
-// 				}
-// 			}
-// 			return true
-// 		}
-// 	case *filterType == "camp":
-// 	}
-
-// 	lastName := label["nameLast"].(string)
-// 	firstChar := lastName[0:1]
-// 	firstChar = strings.ToLower(firstChar)
-// 	if _, exists := filterMap[firstChar]; !exists {
-// 		fmt.Printf("skipping label.  lastName:%v filtermap:%v\n", lastName, filterMap)
-// 		return false
-// 	}
-// 	return true
-// }
-
-// func isEmpty(s string) bool {
-// 	return len(s) == 0
-// }
+// Create directories
+func (l *LabelClient) dirSetup() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	configPath := filepath.Join(home, "Documents", "Mylabels")
+	if err := os.Chdir(configPath); err != nil {
+		return fmt.Errorf("error changing to home directory")
+	}
+	/*----------------------------------------------------------------
+	 * if directory does not exist then create it
+	 *----------------------------------------------------------------*/
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		if err := os.Mkdir(configPath, 0777); err != nil {
+			return fmt.Errorf("error creating directory %v", configPath)
+		}
+	}
+	return nil
+}

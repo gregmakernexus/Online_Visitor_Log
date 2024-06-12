@@ -44,7 +44,11 @@ func main() {
 	}
 	
 	//  Create the label client
+<<<<<<< HEAD
 	l = label.NewLabelClient(log)
+=======
+	l := label.NewLabelClient(log,*dbURL)
+>>>>>>> b189e80 (Store reason codes in config file)
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	

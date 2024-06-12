@@ -39,7 +39,7 @@ func TestMain(t *testing.T) {
 	log = debug.NewLogClient(*logLevel)
 	
 	//  Create the label client
-	l := label.NewLabelClient(log)
+	l := label.NewLabelClient(log, *dbURL)
 	
 	//*********************************************************
 	testStart := time.Now()

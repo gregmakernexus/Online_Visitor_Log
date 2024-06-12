@@ -60,7 +60,8 @@ type Printer struct {
 type LabelClient struct {
 	LabelDir   string `json:"labeldir"`
 	connection *http.Client
-	Printers   []Printer         `json:"printers"`
+	Printers   map[string]Printer         `json:"printers"`
+	PrintQueue []string          `json:printqueue`
 	Current    int               `json:"current"`
 	URL        string            `json:"url"`
 	Reasons    []string          `json:"reasons"`
@@ -85,7 +86,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	log.V(1).Printf("NewLabelClient started\n")
 	l := new(LabelClient)
 	var labelByte []byte
-	c.Printers = make(map[string]Printer)
+	l.Printers = make(map[string]Printer)
 	
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -138,42 +139,43 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
       }
 	}
 	log.V(0).Printf("Printers. Brother:%v Dymo:%v\n",brother_count,dymo_count)
-	// Find out if cups driver is installed for glabels.  lpstat will
-	// show the printer as ready even if it is not plugged in.
-	out, err = exec.Command("lpstat", "-p").CombinedOutput()
+	/*--------------------------------------------------------
+	 * Get the output of "lpstat -p" and build a list of label
+	 * printers.
+	 *
+	 * NOTE: lpstat shows print queues as ready even if the
+	 *       printer is not attached
+	 *---------------------------------------------------------*/
+	 out, err = exec.Command("lpstat", "-p").CombinedOutput()
 	if err != nil {
-		log.Fatalf("exec.Command() failed error:%v\n", err)
+		log.V(0).Fatalf("exec.Command() failed error:%v\n", err)
 	}
 	lines = strings.Split(string(out), "\n")
 	if len(lines) == 0 {
-		log.Fatalf("No Printers Found")
+		log.V(0).Fatalf("No Printers Found")
 	}
 	
 	loop:
 	for _, line := range lines {
-		model, _, status, err := c.parseLpstatP(line)	
+		model, _, status, err := l.parseLpstatP(line)	
 		if err != nil || status == "disabled" || model == "" {
 			continue loop
 		}
-		
 		log.V(1).Printf("model:%v status:%v\n",model, status)
-		// set manufacturer
-		p := c.Printers[model]
+		// set manufacturer.  Filter out the non-label printers
+		// NOTE: there is a chance that a label printer was not
+		// added as a cups printer.  
+		var p Printer
 		switch {
-		case p.PrinterManufacturer == "BROTHER" && strings.Contains(tokens[0], "QL"),
-			p.PrinterManufacturer == "DYMO" && strings.Contains(tokens[0], "LabelWriter"):
-			p.PrinterModel = tokens[0]
-			l.Current = i
-			labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
-			if err != nil {
-				log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
-			}
-			p.LabelTemplate = string(labelByte)
-			log.V(2).Printf("add printer [%v:%v]\n", p.PrinterManufacturer, p.PrinterModel)
-			printers = append(printers, p)
-			i++
+		case strings.Contains(model, "QL") && brother_count > 0:
+			p.PrinterManufacturer = "BROTHER"
+			brother_count -= 1
+		case strings.Contains(model, "LabelWriter") && dymo_count > 0:
+			p.PrinterManufacturer = "DYMO"
+			brother_count -= 1
+        default:
+			continue loop
 		}
-		
 		p.PrinterModel = model
 		p.CurrentJob   = ""
 		p.CurrentTime  = time.Time{}
@@ -184,13 +186,13 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 		}
 		p.LabelTemplate = string(labelByte)
 		p.JobQueue = make([]Job,0)
-		
 		log.V(1).Printf("add printer [%v:%v]\n", p.PrinterManufacturer,p.PrinterModel)
-		c.Printers[model] = p
-		c.PrinterQueue = append(c.PrinterQueue,model) 
-	} // for
-	l.Printers = printers
-
+		l.Printers[model] = p
+		l.PrinterQueue = append(l.PrinterQueue,model) 
+	} // for each line in lpstat -p
+	/*---------------------------------------------------------
+	 * write the label config to disk
+	 *-------------------------------------------------------*/
 	var configBuf []byte
 	if configBuf, err = json.Marshal(l); err != nil {
 		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
@@ -198,6 +200,11 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
 		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
 	}
+	/*----------------------------------------------------------
+	 * Stop program to make them edit the label config filters
+	 * if this is a brand new config file.  We added a list of
+	 * all reason codes to make it easier
+	 *---------------------------------------------------------*/
 	if l.Reasons[0] == "unedited" {
 	   log.V(0).Printf(`Please edit "~\Documents\Mylabels\labelConfig.json" and modify the list of reasons that will be received at this printer`)
 	   log.V(0).Fatalf("Don't forget to remove unedited from the reason")
@@ -243,8 +250,18 @@ func (l *LabelClient) ExportToGlabels(info Visitor) error {
 	// 	c.Current = 0
 	// }
 
-	var temp string = l.Printers[l.Current].LabelTemplate
+	var model string
+	var p     Printer
+	var exist bool
+	if l.Current >= len(l.PrintQueue) {
+	  l.Current = 0
+	}
+	
+	if p, exist = l.Printers[model]; !exist {
+       return fmt.Errorf("missing printer model:%v",model)  
+	}
 	// Get the date right now and update the label
+	temp := p.LabelTemplate
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
@@ -291,8 +308,9 @@ func (l *LabelClient) ExportToGlabels(info Visitor) error {
 	// We have scanned the entire OVL record.  Now do special lookup
 	// when the person forgot a badge.  Check if member or staff
 
-func (c *LabelClient) ProcessLabelQueue() (err error) {
-	log := c.Log
+}
+func (l *LabelClient) ProcessLabelQueue() (err error) {
+	log := l.Log
 	// cd to the Mylabel directory so we can write files
 	if err := os.Chdir(l.LabelDir); err != nil {
 		log.Fatal("Label directory does not exist.")

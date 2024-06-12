@@ -3,17 +3,19 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
+
 	// "time"
 
 	client "example.com/clientinfo"
 	"example.com/debug"
 	label "example.com/label"
 )
+
 /*---------------------------------------------------------------
  * CLI parameters
  *--------------------------------------------------------------*/
 var dbURL = flag.String("db", "https://rfid.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
-var printDelay = flag.Int("delay", 0, "Delay between print commands")
 var logLevel = flag.Int("V", 0, "Logging level for debug messages")
 var clearCache = flag.Bool("clear", false, "Clear database information cache")
 /*---------------------------------------------------------------
@@ -44,7 +46,7 @@ func main() {
 	}
 	
 	//  Create the label client
-	l := label.NewLabelClient(log,*dbURL)
+	l = label.NewLabelClient(log,*dbURL)
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	
@@ -69,7 +71,7 @@ func main() {
 		if err = print(labels,l);err != nil {
 		  log.V(0).Printf("%v\n",err)
 		}
-		
+		time.Sleep(time.Second)
 	} // for infinite loop
 }
 

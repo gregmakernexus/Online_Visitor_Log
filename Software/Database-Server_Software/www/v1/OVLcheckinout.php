@@ -196,7 +196,7 @@ switch ($previousVisitNum) {
         } elseif ($currentCheckInRecNum == 0) {
 
             // this is a new checkin today for an existing visitor
-            checkinVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
+            insertVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
                      "", "", "", $previousVisitNum, "", $currentCheckInData["hasSignedWaiver"]);
             echoMessage( "You have been checked in. Welcome!");
 
@@ -409,7 +409,7 @@ function getCurrentCheckin ($con, $visitID){
     if ($maxRecNum > 0) {
 
         // we have a previous visit, get its data
-        $sql = "SELECT recNum, nameLast, nameFirst, email, phone, dateCheckinLocal, dateCheckoutLocal FROM ovl_visits"
+        $sql = "SELECT recNum, nameLast, nameFirst, email, phone, dateCheckinLocal, dateCheckoutLocal, hasSignedWaiver FROM ovl_visits"
                 . " WHERE recNum = " . $maxRecNum;
 
         debugToUser("sql: " . $sql . "<br>");

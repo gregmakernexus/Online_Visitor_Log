@@ -2,6 +2,7 @@
 package label
 
 import (
+	"bufio"
 	"crypto/tls"
 	"encoding/json"
 
@@ -57,14 +58,14 @@ type Printer struct {
 }
 
 type LabelClient struct {
-	Log        *debug.DebugClient
-	connection *http.Client
-	LabelDir   string `json:"labeldir"`
-	Printers   map[string]Printer `json:"printers"`
+	Log          *debug.DebugClient
+	connection   *http.Client
+	LabelDir     string             `json:"labeldir"`
+	Printers     map[string]Printer `json:"printers"`
 	PrinterQueue []string           `json:"printqueue"`
-	URL        string             `json:"url"`
-	Reasons    []string           `json:"reasons"`
-	FilterList map[string]string  `json:"filters"`
+	URL          string             `json:"url"`
+	Reasons      []string           `json:"reasons"`
+	FilterList   map[string]string  `json:"filters"`
 }
 
 var clients map[string][]string
@@ -91,10 +92,10 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 		log.Fatalf("Error getting user home directory:%v\n", err)
 	}
 	// change diretory to the label directory
-	l.LabelDir = filepath.Join(home, "Documents", "Mylabels")
+	l.LabelDir = filepath.Join(home, "Mylabels")
 	if err := os.Chdir(l.LabelDir); err != nil {
 		log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
-		return nil
+		l.dirSetup()
 	}
 	if _, err = os.Stat("labelConfig.json"); err != nil {
 		log.V(0).Printf("Creating Configuration File")
@@ -103,6 +104,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 		for key := range filterList {
 			l.Reasons = append(l.Reasons, key)
 		}
+		l.FilterEditor()
 		l.URL = dbURL
 
 	} else {
@@ -204,7 +206,7 @@ loop:
 	 * all reason codes to make it easier
 	 *---------------------------------------------------------*/
 	if l.Reasons[0] == "unedited" {
-		log.V(0).Printf(`Please edit "~\Documents\Mylabels\labelConfig.json" and modify the list of reasons that will be received at this printer`)
+		log.V(0).Printf(`Please edit "~\Mylabels\labelConfig.json" and modify the list of reasons that will be received at this printer`)
 		log.V(0).Fatalf("Don't forget to remove unedited from the reason")
 	}
 	// Create the http client with no security this is to access the OVL database
@@ -242,22 +244,20 @@ func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 
 }
 
-
-     
 func (l *LabelClient) AddToLabelQueue(info Visitor) error {
-    log := l.Log
+	log := l.Log
 	if len(info) == 0 {
 		return nil
 	}
 
 	var p Printer
 	var exist bool
-    var model string = l.PrinterQueue[0]  // pop the printer queue
+	var model string = l.PrinterQueue[0] // pop the printer queue
 	if p, exist = l.Printers[model]; !exist {
 		return fmt.Errorf("missing printer model:%v", model)
 	}
 	// Get the date right now and update the label
-	temp := p.LabelTemplate  // make a copy
+	temp := p.LabelTemplate // make a copy
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
@@ -316,15 +316,15 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	 * pop the queue and add it to the end
 	 *----------------------------------------------------------------*/
 	l.PrinterQueue = l.PrinterQueue[1:]
-	l.PrinterQueue = append(l.PrinterQueue,p.PrinterModel)
+	l.PrinterQueue = append(l.PrinterQueue, p.PrinterModel)
 	/*-----------------------------------------------------------------
 	 * debug messages
 	 *-----------------------------------------------------------------*/
-	log.V(2).Printf("Print to %v Start *******************\n",p.PrinterModel)
-	for i,d := range p.JobQueue {
-		log.V(2).Printf("%v name:%v %v\n",i, d.First,d.Last)
+	log.V(2).Printf("Print to %v Start *******************\n", p.PrinterModel)
+	for i, d := range p.JobQueue {
+		log.V(2).Printf("%v name:%v %v\n", i, d.First, d.Last)
 	}
-	
+
 	return nil
 }
 func (l *LabelClient) ProcessLabelQueue() (err error) {
@@ -344,10 +344,10 @@ func (l *LabelClient) ProcessLabelQueue() (err error) {
 			// delete and write the temp.glables file
 			os.Remove("temp.glabels")
 			if err := os.WriteFile("temp.glabels", []byte(j.Label), 0666); err != nil {
-				return fmt.Errorf("write to temp.glabels error:%v\n", err)
+				return fmt.Errorf("write to temp.glabels error:%v", err)
 			}
 			if out, err = exec.Command("glabels-batch-qt", "--printer="+p.PrinterModel, "temp.glabels").CombinedOutput(); err != nil {
-				return fmt.Errorf("glabels-batch-qt --printer=%v temp.glabels\n  error:%v\n  output:%v\n", p.PrinterModel, err, string(out))
+				return fmt.Errorf("glabels-batch-qt --printer=%v temp.glabels  error:%v  output:%v", p.PrinterModel, err, string(out))
 			}
 			j.Start = time.Now()
 			/*-----------------------------------------------------
@@ -429,7 +429,7 @@ func (l *LabelClient) WaitTillIdle(seconds int) (isidle bool) {
 			}
 		}
 
-		time.Sleep(1)
+		time.Sleep(time.Second)
 	}
 	return
 }
@@ -501,7 +501,7 @@ func (l *LabelClient) dirSetup() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	configPath := filepath.Join(home, "Documents", "Mylabels")
+	configPath := filepath.Join(home, "Mylabels")
 	if err := os.Chdir(configPath); err != nil {
 		return fmt.Errorf("error changing to home directory")
 	}
@@ -514,4 +514,43 @@ func (l *LabelClient) dirSetup() error {
 		}
 	}
 	return nil
+}
+
+func (l *LabelClient) FilterEditor() error {
+	// Wrapping the unbuffered `os.Stdin` with a buffered
+	// reader gives us a convenient `ReadString` method
+	// that we'll use to read input line-by-line.
+	rdr := bufio.NewReader(os.Stdin)
+
+	// `ReadString` returns the next string from the
+	// input up to the given separator byte. We give the
+	// newline byte `'\n'` as our separator so we'll get
+	// successive input lines.
+	for {
+		for key, value := range l.FilterList {
+			fmt.Fprintf(os.Stdout, "  %v:%v\n", key, value)
+		}
+		fmt.Fprintf(os.Stdout, "Enter Command: (cr when done)")
+		line, err := rdr.ReadString('\n')
+		if err != io.EOF {
+			return nil
+		}
+		if len(line) == 0 {
+			return nil
+		}
+		line = strings.ToLower(line)
+		tokens := strings.Split(line, " ")
+		if len(tokens) < 2 {
+			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "Unknown command.  e.g. add newfilter or delete camp")
+		}
+		switch {
+		case tokens[0] == "add", tokens[0] == "a":
+		case tokens[0] == "delete", tokens[0] == "d":
+		case tokens[0] == "help", tokens[0] == "h":
+		default:
+			fmt.Fprintln(os.Stderr, "Unknown command.  e.g. add newfilter or delete camp")
+		}
+
+	}
 }

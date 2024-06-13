@@ -2,18 +2,19 @@ package main
 
 import (
 	"flag"
+	"os"
 	"testing"
 	"time"
+
 	// "os/exec"
 
-	
 	"example.com/debug"
 	label "example.com/label"
 	// name "github.com/goombaio/namegenerator"
 )
 
 /*---------------------------------------------------------------------
- * OVL fields: 
+ * OVL fields:
  * [recNum,dateCreated,dateCreatedLocal,dateUpdated,dateUpdatedLocal,
  * nameFirst,nameLast,email,phone,visitReason,previousRecNum,
  * dateCheckinLocal,dateCheckoutLocal,elapsedHours,hasSignedWaiver,
@@ -39,7 +40,7 @@ func TestMain(t *testing.T) {
 	log = debug.NewLogClient(*logLevel)
 	
 	//  Create the label client
-	l := label.NewLabelClient(log, *dbURL)
+	l := label.NewLabelClient(log, *dbURL, os.Stdin)
 	
 	//*********************************************************
 	testStart := time.Now()

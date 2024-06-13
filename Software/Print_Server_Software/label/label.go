@@ -60,6 +60,7 @@ type Printer struct {
 type LabelClient struct {
 	Log          *debug.DebugClient
 	connection   *http.Client
+	rdr          io.Reader
 	LabelDir     string             `json:"labeldir"`
 	Printers     map[string]Printer `json:"printers"`
 	PrinterQueue []string           `json:"printqueue"`
@@ -81,7 +82,7 @@ var filterList = map[string]string{
 	"other":           "Visitor",
 }
 
-func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
+func NewLabelClient(log *debug.DebugClient, dbURL string, rdr io.Reader) *LabelClient {
 	log.V(1).Printf("NewLabelClient started\n")
 	l := new(LabelClient)
 	var labelByte []byte

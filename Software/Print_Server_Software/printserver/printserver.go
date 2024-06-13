@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	// "time"
@@ -25,6 +26,7 @@ var clients map[string][]string
 var log *debug.DebugClient
 var l *label.LabelClient
 var err error
+var rdr = os.Stdin
 
 func main() {
 	// init command line flags
@@ -46,7 +48,7 @@ func main() {
 	}
 	
 	//  Create the label client
-	l = label.NewLabelClient(log,*dbURL)
+	l = label.NewLabelClient(log,*dbURL, rdr)
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	

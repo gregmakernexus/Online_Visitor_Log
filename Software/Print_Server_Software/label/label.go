@@ -62,7 +62,6 @@ type LabelClient struct {
 	LabelDir   string `json:"labeldir"`
 	Printers   map[string]Printer `json:"printers"`
 	PrinterQueue []string           `json:"printqueue"`
-	Current    int                `json:"current"`
 	URL        string             `json:"url"`
 	Reasons    []string           `json:"reasons"`
 	FilterList map[string]string  `json:"filters"`
@@ -242,20 +241,23 @@ func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	return labels.Data.Visitors, nil
 
 }
-func (l *LabelClient) ExportToGlabels(info Visitor) error {
 
-	var model string
-	var p Printer
-	var exist bool
-	if l.Current >= len(l.PrinterQueue) {
-		l.Current = 0
+
+     
+func (l *LabelClient) AddToLabelQueue(info Visitor) error {
+    log := l.Log
+	if len(info) == 0 {
+		return nil
 	}
 
+	var p Printer
+	var exist bool
+    var model string = l.PrinterQueue[0]  // pop the printer queue
 	if p, exist = l.Printers[model]; !exist {
 		return fmt.Errorf("missing printer model:%v", model)
 	}
 	// Get the date right now and update the label
-	temp := p.LabelTemplate
+	temp := p.LabelTemplate  // make a copy
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
@@ -299,8 +301,30 @@ func (l *LabelClient) ExportToGlabels(info Visitor) error {
 			}
 		}
 	}
-	// We have scanned the entire OVL record.  Now do special lookup
-	// when the person forgot a badge.  Check if member or staff
+	/*-----------------------------------------------------------------
+	* Store the label in the queue
+	*----------------------------------------------------------------*/
+	var j Job
+	j.Label = temp
+	j.First = first
+	j.Last = last
+	j.Start = time.Now()
+	j.Reason = reason
+	p.JobQueue = append(p.JobQueue, j)
+	l.Printers[p.PrinterModel] = p
+	/*-----------------------------------------------------------------
+	 * pop the queue and add it to the end
+	 *----------------------------------------------------------------*/
+	l.PrinterQueue = l.PrinterQueue[1:]
+	l.PrinterQueue = append(l.PrinterQueue,p.PrinterModel)
+	/*-----------------------------------------------------------------
+	 * debug messages
+	 *-----------------------------------------------------------------*/
+	log.V(2).Printf("Print to %v Start *******************\n",p.PrinterModel)
+	for i,d := range p.JobQueue {
+		log.V(2).Printf("%v name:%v %v\n",i, d.First,d.Last)
+	}
+	
 	return nil
 }
 func (l *LabelClient) ProcessLabelQueue() (err error) {

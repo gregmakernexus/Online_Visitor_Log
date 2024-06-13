@@ -79,7 +79,7 @@ func print(labels []label.Visitor, l *label.LabelClient) error {
 	// log.V(1).Printf("There are %v labels\n",len(labels))
 	for _, label := range labels {
 		// take the OVL info add label to print queue 
-		if err := l.ExportToGlabels(label); err != nil {
+		if err := l.AddToLabelQueue(label); err != nil {
 			return fmt.Errorf("exporttoglabels error:%v",err)
 		}
 	}

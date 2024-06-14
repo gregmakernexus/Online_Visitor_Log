@@ -39,8 +39,8 @@ logfile(">>>----- OVLcheckinout.php called");
 ini_set('log_errors', 1);
 ini_set('error_log', 'OVLlog.txt');
 
-
-allowWebAccess();  // if IP not allowed, then this function will die
+// don't check IP address since this needs to be available to the public
+//allowWebAccess();  // if IP not allowed, then this function will die
 
 
 // Get the database connection info from the ini file

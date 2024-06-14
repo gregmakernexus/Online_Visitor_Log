@@ -9,11 +9,11 @@
 function allowWebAccess() {
 
 	// for now return true until we get the public ip of MN
-	return;
+	//return;
 
-	$allowedIPs = array (
-		'34.197.209.41'   // Particle.io cloud (all our devices)
-		,'107.139.32.104'   // Jim in San Carlos
+	$allowedIPs = array (  
+        '12.33.220.202' // MN public ip at Orleans
+		,'173.228.112.184'   // Jim in San Carlos 
 	);
 
 	$rtnvalue = false;

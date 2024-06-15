@@ -39,8 +39,8 @@ logfile(">>>----- OVLcheckinout.php called");
 ini_set('log_errors', 1);
 ini_set('error_log', 'OVLlog.txt');
 
-
-allowWebAccess();  // if IP not allowed, then this function will die
+// don't check IP address since this needs to be available to the public
+//allowWebAccess();  // if IP not allowed, then this function will die
 
 
 // Get the database connection info from the ini file
@@ -196,7 +196,7 @@ switch ($previousVisitNum) {
         } elseif ($currentCheckInRecNum == 0) {
 
             // this is a new checkin today for an existing visitor
-            checkinVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
+            insertVisitInDatabase($con, $nowSQL, $currentCheckInData["nameFirstFromDB"], $currentCheckInData["nameLastFromDB"],
                      "", "", "", $previousVisitNum, "", $currentCheckInData["hasSignedWaiver"]);
             echoMessage( "You have been checked in. Welcome!");
 
@@ -409,7 +409,7 @@ function getCurrentCheckin ($con, $visitID){
     if ($maxRecNum > 0) {
 
         // we have a previous visit, get its data
-        $sql = "SELECT recNum, nameLast, nameFirst, email, phone, dateCheckinLocal, dateCheckoutLocal FROM ovl_visits"
+        $sql = "SELECT recNum, nameLast, nameFirst, email, phone, dateCheckinLocal, dateCheckoutLocal, hasSignedWaiver FROM ovl_visits"
                 . " WHERE recNum = " . $maxRecNum;
 
         debugToUser("sql: " . $sql . "<br>");

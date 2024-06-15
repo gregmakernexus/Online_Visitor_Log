@@ -29,7 +29,8 @@ logfile(">>>----- OVLsignin.php called");
 ini_set('log_errors', 1);
 ini_set('error_log', 'OVLlog.txt');
 
-allowWebAccess();  // if IP not allowed, then this function will die
+// Don't check for IP address because we need this form to be available to the public
+// allowWebAccess();  // if IP not allowed, then this function will die
 
 $registerOnly = FALSE;  // default is to sign in
 # is this for register only?

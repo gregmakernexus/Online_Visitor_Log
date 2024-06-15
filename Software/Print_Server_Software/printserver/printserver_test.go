@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 	"time"
-
+	"strings"
 	// "os/exec"
 
 	"example.com/debug"
@@ -33,28 +33,60 @@ var test3 = []label.Visitor{
 	{"nameFirst": "alsootfa",  "nameLast": "mohammed", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
 	{"nameFirst": "mickey",  "nameLast": "mouse", "visitReason": "forgotbadge","URL": "https://makernexus.org"},
 }
+
+var cliCommands = []string{
+   "help",
+   "",
+   "add greg",
+   "gregvisit",
+   "list",
+   "modify greg",
+   "hiding",
+   "list",
+   "delete greg",
+   "list",
+   "modify greg",
+   "invalidcommand",
+   "clear",
+   "list",
+   "reset",
+   "list",
+   "exit",
+}
+
+
 func TestMain(t *testing.T) {
 	// init command line flags
 	flag.Parse()
-	
+
 	log = debug.NewLogClient(*logLevel)
 	
 	//  Create the label client
-	l := label.NewLabelClient(log, *dbURL, os.Stdin)
-	
+	// rdr  = NewFile(uintptr(syscall.Stdin), "/dev/stdin")
+	var rdr *os.File
+	var err error
+	// convert []string to string with carriage returns
+	c := []byte(strings.Join(cliCommands,"\n"))
+	os.WriteFile("cli.txt",c, 0777)
+	if rdr,err = os.Open("cli.txt"); err != nil {
+		t.Error(err)
+	    t.Fatal()
+	}
+	l := label.NewLabelClient(log, *dbURL)
+	l.FilterEditor(rdr, os.Stdout, true)
 	//*********************************************************
 	testStart := time.Now()
-	print(test1,l)
+	l.Print(test1)
 	if !l.WaitTillIdle(120) {
 		t.Errorf("Test1 Failed.  Printer got stuck") 
 	}
 	t.Logf("Test1 Execution Time:%v\n", time.Since(testStart))
 	
 	test2 := make([]label.Visitor,0)
-	print(test2,l)
+	l.Print(test2)
 	checkStuck(l)
 	
-	print(test3,l)
+	l.Print(test3)
 	if !l.WaitTillIdle(120) {
 		t.Errorf("Test3 Successful.  Timeout") 
 	}

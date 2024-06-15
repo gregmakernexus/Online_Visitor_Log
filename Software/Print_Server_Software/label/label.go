@@ -5,8 +5,6 @@ import (
 	"bufio"
 	"crypto/tls"
 	"encoding/json"
-
-	//"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"text/tabwriter"
 
 	"example.com/debug"
 )
@@ -60,7 +59,6 @@ type Printer struct {
 type LabelClient struct {
 	Log          *debug.DebugClient
 	connection   *http.Client
-	rdr          io.Reader
 	LabelDir     string             `json:"labeldir"`
 	Printers     map[string]Printer `json:"printers"`
 	PrinterQueue []string           `json:"printqueue"`
@@ -71,7 +69,6 @@ type LabelClient struct {
 
 var clients map[string][]string
 var filterList = map[string]string{
-	"unedited":        "",
 	"classOrworkshop": "Class/Workshop",
 	"makernexusevent": "Special Event",
 	"camp":            "Kids Camp",
@@ -82,12 +79,14 @@ var filterList = map[string]string{
 	"other":           "Visitor",
 }
 
-func NewLabelClient(log *debug.DebugClient, dbURL string, rdr io.Reader) *LabelClient {
-	log.V(1).Printf("NewLabelClient started\n")
+func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	l := new(LabelClient)
+	l.Log = log
+
+	log.V(1).Printf("NewLabelClient started\n")
 	var labelByte []byte
 	l.Printers = make(map[string]Printer)
-	l.Log = log
+	
 	home, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("Error getting user home directory:%v\n", err)
@@ -99,13 +98,12 @@ func NewLabelClient(log *debug.DebugClient, dbURL string, rdr io.Reader) *LabelC
 		l.dirSetup()
 	}
 	if _, err = os.Stat("labelConfig.json"); err != nil {
-		log.V(0).Printf("Creating Configuration File")
+		log.V(0).Fatalf("Creating Configuration File")
 		l.FilterList = filterList
 		l.Reasons = make([]string, 0, 20)
 		for key := range filterList {
 			l.Reasons = append(l.Reasons, key)
 		}
-		l.FilterEditor()
 		l.URL = dbURL
 
 	} else {
@@ -201,15 +199,7 @@ loop:
 	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
 		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
 	}
-	/*----------------------------------------------------------
-	 * Stop program to make them edit the label config filters
-	 * if this is a brand new config file.  We added a list of
-	 * all reason codes to make it easier
-	 *---------------------------------------------------------*/
-	if l.Reasons[0] == "unedited" {
-		log.V(0).Printf(`Please edit "~\Mylabels\labelConfig.json" and modify the list of reasons that will be received at this printer`)
-		log.V(0).Fatalf("Don't forget to remove unedited from the reason")
-	}
+	
 	// Create the http client with no security this is to access the OVL database
 	// website
 	l.connection = &http.Client{
@@ -517,41 +507,139 @@ func (l *LabelClient) dirSetup() error {
 	return nil
 }
 
-func (l *LabelClient) FilterEditor() error {
-	// Wrapping the unbuffered `os.Stdin` with a buffered
-	// reader gives us a convenient `ReadString` method
-	// that we'll use to read input line-by-line.
-	rdr := bufio.NewReader(os.Stdin)
+func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (err error) {
 
-	// `ReadString` returns the next string from the
-	// input up to the given separator byte. We give the
-	// newline byte `'\n'` as our separator so we'll get
-	// successive input lines.
+	rdr := bufio.NewReader(input)
+	w := tabwriter.NewWriter(output, 0, 0, 1, ' ', 0)
+
+	/*----------------------------------------------------------------
+	 * Courtesy print of the filter list
+	 * --------------------------------------------------------------*/
+	fmt.Fprintf(w, "filter\tdisplayed reason\n")
+	fmt.Fprintf(w, "------\t----------------\n")
+	for key, value := range l.FilterList {
+		fmt.Fprintf(w, "%v\t%v\n", key, value)
+	}
+	w.Flush()
 	for {
-		for key, value := range l.FilterList {
-			fmt.Fprintf(os.Stdout, "  %v:%v\n", key, value)
+		fmt.Fprintf(output, "Enter Command: (cr when done):")
+		line, _ := rdr.ReadString('\n')
+        if echo {
+			fmt.Fprintf(output,"%v", line)
 		}
-		fmt.Fprintf(os.Stdout, "Enter Command: (cr when done)")
-		line, err := rdr.ReadString('\n')
-		if err != io.EOF {
-			return nil
-		}
+		line = strings.Replace(line, "\n","",-1)
 		if len(line) == 0 {
-			return nil
+		    continue
 		}
 		line = strings.ToLower(line)
 		tokens := strings.Split(line, " ")
-		if len(tokens) < 2 {
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Fprintln(os.Stderr, "Unknown command.  e.g. add newfilter or delete camp")
-		}
 		switch {
 		case tokens[0] == "add", tokens[0] == "a":
+		    if len(tokens) < 2 {
+				fmt.Fprintf(output, "missing parameter")
+				continue
+			}
+			if _, exist := l.FilterList[tokens[1]]; exist {
+			    fmt.Fprintf(output, "Filter %v already exists\n",tokens[1])
+			    continue
+			}
+			if reason, exist := filterList[tokens[1]]; exist {
+				l.FilterList[tokens[1]] = reason
+				continue
+			}
+			fmt.Fprintf(output, "Adding a unknow filter.  Enter reason text:")
+			line, _ := rdr.ReadString('\n')
+			if echo {
+				fmt.Fprintf(output,"%v", line)
+			}
+			line = strings.Replace(line, "\n","",-1)
+			if len(line) > 0 {
+				l.FilterList[tokens[1]] = line
+			}
+		
+			
 		case tokens[0] == "delete", tokens[0] == "d":
+			if len(tokens) < 2 {
+				fmt.Fprintf(output, "missing parameter")
+				continue
+			}
+			if _, exist := l.FilterList[tokens[1]]; !exist {
+			   fmt.Fprintf(output, "filter does not exist\n")
+			   continue
+			} 
+			delete(l.FilterList,tokens[1])
+		case tokens[0] == "modify", tokens[0] == "m":
+		    if len(tokens) < 2 {
+				fmt.Fprintf(output, "missing parameter")
+				continue
+			}
+		    if _, exist := l.FilterList[tokens[1]]; !exist {
+				fmt.Fprintf(output, "filter does not exist\n")
+			    continue
+			}
+			fmt.Fprintf(output, "Modifying %v. Enter new reason:",tokens[1])
+		    line, _ := rdr.ReadString('\n')
+		    if echo {
+				fmt.Fprintf(output,"%v", line)
+			}
+		    line = strings.Replace(line, "\n","",-1)
+		    if len(line) > 0 {
+			 	l.FilterList[tokens[1]] = line
+		    }
+		case tokens[0] == "list", tokens[0] == "l":
+			fmt.Fprintf(w, "filter\tdisplayed reason\n")
+			fmt.Fprintf(w, "------\t----------------\n")
+			for key, value := range l.FilterList {
+				fmt.Fprintf(w, "%v\t%v\n", key, value)
+			}
+			w.Flush()
+		case tokens[0] == "clear", tokens[0] == "c":
+			l.FilterList = make(map[string]string)
+		case tokens[0] == "reset", tokens[0] == "r":
+		   l.FilterList = filterList
+		case tokens[0] == "exit", tokens[0] == "e":
+			var configBuf []byte
+			if configBuf, err = json.Marshal(l); err != nil {
+				log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
+			}
+			if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
+				log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
+			}
+			fmt.Fprintf(output,"\n")
+		   return nil
 		case tokens[0] == "help", tokens[0] == "h":
+		   fmt.Fprintf(w, "+--------------------\t+-------------------------------------------------------------\t+\n")
+		   fmt.Fprintf(w, "| command\t| description\t|\n")
+		   fmt.Fprintf(w, "+--------------------\t+-------------------------------------------------------------\t+\n")
+		   fmt.Fprintf(w, "| add filtername\t| print labels with this reason on this printer\t|\n")
+		   fmt.Fprintf(w, "| delete filtername\t| do not print specified labels on this printer\t|\n")
+		   fmt.Fprintf(w, "| clear\t| remove all filters, which will not print anything\t|\n")
+		   fmt.Fprintf(w, "| list\t| list all the filters and reasons\t|\n")
+		   fmt.Fprintf(w, "| reset\t| add all filters, which will print ALL labels on this printer\t|\n")
+		   fmt.Fprintf(w, "| help\t| display help text\t|\n")
+		   fmt.Fprintf(w, "| modify filtername\t| change the text that get's printer on labels\t|\n")
+		   fmt.Fprintf(w, "| exit\t| save edits and start program\t|\n")
+		   fmt.Fprintf(w, "+--------------------\t+--------------------------------------------------------------\t+\n")
+			w.Flush()
 		default:
 			fmt.Fprintln(os.Stderr, "Unknown command.  e.g. add newfilter or delete camp")
-		}
+		} // switch
 
-	}
+	} // for
+	return
 }
+
+func (l *LabelClient) Print(labels []Visitor ) (err error) {
+	// log.V(1).Printf("There are %v labels\n",len(labels))
+	for _, label := range labels {
+		// take the OVL info add label to print queue 
+		if err := l.AddToLabelQueue(label); err != nil {
+			return fmt.Errorf("exporttoglabels error:%v",err)
+		}
+	}
+	if err = l.ProcessLabelQueue(); err != nil {
+		return fmt.Errorf("processlabelqueue error:%v", err)
+	}
+	return nil
+}
+	

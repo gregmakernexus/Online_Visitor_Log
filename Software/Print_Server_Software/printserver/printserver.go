@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"time"
-
+	"os/exec"
 	// "time"
 
 	client "example.com/clientinfo"
@@ -18,7 +18,8 @@ import (
  *--------------------------------------------------------------*/
 var dbURL = flag.String("db", "https://rfid.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
 var logLevel = flag.Int("V", 0, "Logging level for debug messages")
-var clearCache = flag.Bool("clear", false, "Clear database information cache")
+var config = flag.Bool("config", false, "Enter filter editor, before starting")
+var cliAutomation = flag.String("cli","stdin","File for test automation of cli")
 /*---------------------------------------------------------------
  * global variables
  *-------------------------------------------------------------*/
@@ -26,17 +27,14 @@ var clients map[string][]string
 var log *debug.DebugClient
 var l *label.LabelClient
 var err error
-var rdr = os.Stdin
+var rdr *os.File = os.Stdin
 
 func main() {
 	// init command line flags
 	flag.Parse()
 	var err error
 	log = debug.NewLogClient(*logLevel)
-	// delete config file and re-input DB data
-	if *clearCache {
-		client.ClearConfig()
-	}
+	
 	// load the clientinfo table into map for lookup
 	clients, err = client.NewClientInfo(log)
 	if err != nil {
@@ -48,7 +46,22 @@ func main() {
 	}
 	
 	//  Create the label client
-	l = label.NewLabelClient(log,*dbURL, rdr)
+	if *cliAutomation != "stdin" {
+	    if rdr,err = os.Open(*cliAutomation);err != nil {
+			log.V(0).Fatal(err)
+		}
+	}
+	l = label.NewLabelClient(log,*dbURL)
+	if *config {
+		home, _ := os.UserHomeDir()
+		os.Chdir(home)
+	    result, _ := exec.Command("pm2", "stop",  "printserver").CombinedOutput()
+	    fmt.Println(string(result))
+	    l.FilterEditor(os.Stdin, os.Stdout, false)
+	    result, _ = exec.Command("pm2", "start",  "printserver").CombinedOutput()
+	    fmt.Println(string(result))
+	}
+	
 	// Print program banners
 	fmt.Println("Print Server v1.00.00  Initialized.  Hit control-c to exit.")
 	
@@ -70,25 +83,12 @@ func main() {
 			}
 			continue
 		}
-		if err = print(labels,l);err != nil {
+		if err = l.Print(labels);err != nil {
 		  log.V(0).Printf("%v\n",err)
 		}
 		time.Sleep(time.Second)
 	} // for infinite loop
 }
 
-func print(labels []label.Visitor, l *label.LabelClient) error {
-	// log.V(1).Printf("There are %v labels\n",len(labels))
-	for _, label := range labels {
-		// take the OVL info add label to print queue 
-		if err := l.AddToLabelQueue(label); err != nil {
-			return fmt.Errorf("exporttoglabels error:%v",err)
-		}
-	}
-	if err = l.ProcessLabelQueue(); err != nil {
-		return fmt.Errorf("processlabelqueue error:%v", err)
-	}
-	return nil
-}
-	
+
 

@@ -69,7 +69,7 @@ $vrssSQL = $vrssSQL . ")";
 
 
 $visitorArray =  array();  // create empty array here, in case of SQL error
-$sql = "SELECT recNum, nameFirst, nameLast FROM ovl_visits " 
+$sql = "SELECT recNum, nameFirst, nameLast, visitReason FROM ovl_visits " 
         . " WHERE labelNeedsPrinting = 1"
         . " AND " . $vrssSQL
         . " LIMIT 5";
@@ -95,6 +95,7 @@ if (!$result) {
             $visitorArray[$visitorCount]["nameFirst"] = $row["nameFirst"];
             $visitorArray[$visitorCount]["nameLast"] = $row["nameLast"];
             $visitorArray[$visitorCount]["URL"] = $pathToOVL . "OVLcheckinout.php?vid=" . $row["recNum"];
+            $visitorArray[$visitorCount]["visitReason"] = $row["visitReason"];
             $recNumList = $recNumList . $row["recNum"] . ",";
         }
         $recNumList = substr($recNumList, 0, -1); // remove trailing comma

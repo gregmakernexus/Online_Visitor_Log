@@ -99,6 +99,23 @@ if [[ $(ls) = *printserver* ]]; then
 else
   exit 101
 fi
+#-------------------------------------------------------
+#  Compile printconfig.go and copy to .bin
+#-------------------------------------------------------
+cd "$bash_path"/printconfig
+if [ ! -f "printconfig.go" ]; then
+   echo "printconfig.go is not in the directory with install script"
+   exit 100
+fi
+echo "building printconfig.go"
+go build printconfig.go
+cd "$HOME/.bin"
+cp -f "$bash_path/printconfig/printconfig" printconfig
+if [[ $(ls) = *printconfig* ]]; then
+  echo "printconfig is installed"
+else
+  exit 101
+fi
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory
 #------------------------------------------------------
@@ -110,6 +127,7 @@ cd "$HOME/Mylabels"
 cp -f "$bash_path/maker_nexus_logo.png" maker_nexus_logo.png  
 cp -f "$bash_path/DYMO.glabels" DYMO.glabels
 cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
+cp -f "$bash_path/printer.glabels" printer.glabels
 #-----------------------------------------------------
 # Install Brother printer driver
 #----------------------------------------------------

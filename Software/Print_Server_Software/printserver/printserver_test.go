@@ -4,12 +4,15 @@ import (
 	"flag"
 	"os"
 	"testing"
-	"time"
+	// "time"
 	"strings"
-	// "os/exec"
+	// "net/http"
+	// "fmt"
+	"os/exec"
 
 	"example.com/debug"
 	label "example.com/label"
+	client "example.com/clientinfo"
 	// name "github.com/goombaio/namegenerator"
 )
 
@@ -51,6 +54,8 @@ var cliCommands = []string{
    "list",
    "reset",
    "list",
+//   "clear",
+//   "add camp",
    "exit",
 }
 
@@ -61,38 +66,59 @@ func TestMain(t *testing.T) {
 
 	log = debug.NewLogClient(*logLevel)
 	
+	
 	//  Create the label client
 	// rdr  = NewFile(uintptr(syscall.Stdin), "/dev/stdin")
 	var rdr *os.File
 	var err error
-	// convert []string to string with carriage returns
+	l := label.NewLabelClient(log, *dbURL)
+	
+	// load the clientinfo table into map for lookup
+	l.Clients, err = client.NewClientInfo(log)
+	if err != nil {
+		log.V(0).Fatal(err)
+	}
+	log.V(2).Println("client map:")
+	for key, rec := range l.Clients {
+		log.V(2).Println(key, rec)
+	}
+	// test the filtereditor code	
 	c := []byte(strings.Join(cliCommands,"\n"))
 	os.WriteFile("cli.txt",c, 0777)
 	if rdr,err = os.Open("cli.txt"); err != nil {
 		t.Error(err)
 	    t.Fatal()
 	}
-	l := label.NewLabelClient(log, *dbURL)
 	l.FilterEditor(rdr, os.Stdout, true)
+	
+	
+	var labels []label.Visitor
+	// clean out any labels that were submitted	
+	if labels, err = l.ReadOVL(*dbURL); err != nil {
+		log.V(0).Printf("get from webserver failed. Error:%v\n", err)
+		return
+	}
+	for len(labels) != 0 {
+		if labels, err = l.ReadOVL(*dbURL); err != nil {
+			log.V(0).Printf("get from webserver failed. Error:%v\n", err)
+			return
+		}
+	}
 	//*********************************************************
-	testStart := time.Now()
-	l.Print(test1)
-	if !l.WaitTillIdle(120) {
-		t.Errorf("Test1 Failed.  Printer got stuck") 
+	if err := exec.Command("ovlregister.sh").Run();err != nil {
+	   log.V(0).Printf("exec.Command() error:%v\n",err)
 	}
-	t.Logf("Test1 Execution Time:%v\n", time.Since(testStart))
-	
-	test2 := make([]label.Visitor,0)
-	l.Print(test2)
-	checkStuck(l)
-	
-	l.Print(test3)
-	if !l.WaitTillIdle(120) {
-		t.Errorf("Test3 Successful.  Timeout") 
+    
+    for {
+		if labels, err = l.ReadOVL(*dbURL); err != nil {
+			log.V(0).Printf("get from webserver failed. Error:%v\n", err)
+			return
+		}
+		if len(labels) == 0 {
+		  break
+		}
+		l.Print(labels)
 	}
-	
-	
-	
 	
 }
 

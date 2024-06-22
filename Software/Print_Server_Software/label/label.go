@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 	"text/tabwriter"
+	// "net/http/httputil"
 
 	"example.com/debug"
 )
@@ -59,39 +60,42 @@ type Printer struct {
 type LabelClient struct {
 	Log          *debug.DebugClient
 	connection   *http.Client
+	Clients      map[string][]string
+	BrotherCount int
+	DymoCount    int  
 	LabelDir     string             `json:"labeldir"`
 	Printers     map[string]Printer `json:"printers"`
 	PrinterQueue []string           `json:"printqueue"`
 	URL          string             `json:"url"`
+	URLWithParms string             `json:"urlwithparms"`
 	Reasons      []string           `json:"reasons"`
 	FilterList   map[string]string  `json:"filters"`
 }
 
-var clients map[string][]string
 var filterList = map[string]string{
 	"classOrworkshop": "Class/Workshop",
-	"makernexusevent": "Special Event",
+	"makernexusevent": "Event",
 	"camp":            "Kids Camp",
 	"volunteering":    "Volunteer",
 	"forgotbadge":     "Forgot Badge",
-	"guest":           "Visitor",
-	"tour":            "Visitor",
+	"guest":           "Guest",
+	"tour":            "TOUR",
 	"other":           "Visitor",
 }
 
 func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	l := new(LabelClient)
 	l.Log = log
-
 	log.V(1).Printf("NewLabelClient started\n")
-	var labelByte []byte
 	l.Printers = make(map[string]Printer)
 	
 	home, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("Error getting user home directory:%v\n", err)
 	}
-	// change diretory to the label directory
+	/*----------------------------------------------------------------
+	 * Read the config file.  If not there, build default.
+	 *---------------------------------------------------------------*/
 	l.LabelDir = filepath.Join(home, "Mylabels")
 	if err := os.Chdir(l.LabelDir); err != nil {
 		log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
@@ -99,13 +103,9 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	}
 	if _, err = os.Stat("labelConfig.json"); err != nil {
 		log.V(0).Fatalf("Creating Configuration File")
-		l.FilterList = filterList
+		l.FilterList = filterList // default is all catagories
 		l.Reasons = make([]string, 0, 20)
-		for key := range filterList {
-			l.Reasons = append(l.Reasons, key)
-		}
-		l.URL = dbURL
-
+		
 	} else {
 		byteJson, err := os.ReadFile("labelConfig.json")
 		if err != nil {
@@ -115,80 +115,25 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 			log.V(0).Fatalf("Error unmarshall labelConfig.json")
 		}
 	}
-	// scan for the label printer in usb ports (brother or dymo)
-	out, err := exec.Command("lsusb").CombinedOutput()
-	if err != nil {
-		log.Fatalf("exec.Command() failed error:%v\n", err)
+	/*----------------------------------------------------------------
+	 * Build the URL so the php server will read parms
+	 *---------------------------------------------------------------*/
+	l.URL = dbURL
+	l.URLWithParms = l.URL + "?vrss="
+	for key,_ := range l.FilterList {
+		l.Reasons = append(l.Reasons, key)
+		l.URLWithParms = l.URLWithParms + key + "|"
 	}
-	log.V(1).Printf("lsusb:%v", string(out))
-	lines := strings.Split(string(out), "\n")
-	if len(lines) == 0 {
-		log.Fatalf("No Printers Found")
-	}
-	// count the number of brother or dymo printers that are plugged
-	// into usb
-	dymo_count := 0
-	brother_count := 0
-	for _, line := range lines {
-		switch {
-		case strings.Contains(line, "Brother"):
-			brother_count += 1
-		case strings.Contains(line, "LabelWriter"):
-			dymo_count += 1
-		}
-	}
-	log.V(0).Printf("Printers. Brother:%v Dymo:%v\n", brother_count, dymo_count)
-	/*--------------------------------------------------------
-	 * Get the output of "lpstat -p" and build a list of label
-	 * printers.
-	 *
-	 * NOTE: lpstat shows print queues as ready even if the
-	 *       printer is not attached
+	l.URLWithParms = l.URLWithParms[:len(l.URLWithParms)-1]
+	log.V(1).Printf("DB Url:%v\n",l.URLWithParms)
+	/*-----------------------------------------------------------------
+	 * Count the number of label printers attached to USB (lsusb)
+	 *----------------------------------------------------------------*/	
+	l.CountUSBPrinters()
+	/*------------------------------------------------------------------
+	 * Get CUPS printers
 	 *---------------------------------------------------------*/
-	out, err = exec.Command("lpstat", "-p").CombinedOutput()
-	if err != nil {
-		log.V(0).Fatalf("exec.Command() failed error:%v\n", err)
-	}
-	lines = strings.Split(string(out), "\n")
-	if len(lines) == 0 {
-		log.V(0).Fatalf("No Printers Found")
-	}
-
-loop:
-	for _, line := range lines {
-		model, _, status, err := l.parseLpstatP(line)
-		if err != nil || status == "disabled" || model == "" {
-			continue loop
-		}
-		log.V(1).Printf("model:%v status:%v\n", model, status)
-		// set manufacturer.  Filter out the non-label printers
-		// NOTE: there is a chance that a label printer was not
-		// added as a cups printer.
-		var p Printer
-		switch {
-		case strings.Contains(model, "QL") && brother_count > 0:
-			p.PrinterManufacturer = "BROTHER"
-			brother_count -= 1
-		case strings.Contains(model, "LabelWriter") && dymo_count > 0:
-			p.PrinterManufacturer = "DYMO"
-			brother_count -= 1
-		default:
-			continue loop
-		}
-		p.PrinterModel = model
-		p.CurrentJob = ""
-		p.CurrentTime = time.Time{}
-		p.PrinterStatus = status
-		labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
-		if err != nil {
-			log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
-		}
-		p.LabelTemplate = string(labelByte)
-		p.JobQueue = make([]Job, 0)
-		log.V(1).Printf("add printer [%v:%v]\n", p.PrinterManufacturer, p.PrinterModel)
-		l.Printers[model] = p
-		l.PrinterQueue = append(l.PrinterQueue, model)
-	} // for each line in lpstat -p
+	l.updateCUPSPrinter()
 	/*---------------------------------------------------------
 	 * write the label config to disk
 	 *-------------------------------------------------------*/
@@ -217,10 +162,12 @@ func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	// Do the http.get
 	log := l.Log
 	labels := new(VisitorList)
-	html, err := l.connection.Get(url)
+   
+	html, err := l.connection.Get(l.URLWithParms)
 	if err != nil {
 		log.Fatal(err)
 	}
+	
 	// extract the body from the http packet
 	results, err := io.ReadAll(html.Body)
 	if err != nil {
@@ -229,21 +176,27 @@ func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	html.Body.Close()
 	// unmarshall the json object
 	if err := json.Unmarshal(results, labels); err != nil {
+		fmt.Printf("unmarshall error:%v\n",err)
 		return nil, err
+	}
+	for i,v := range labels.Data.Visitors {
+	    log.V(1).Printf("%v %v %v reason:%v\n",i,v["nameFirst"],v["nameLast"],v["visitReason"])
 	}
 	return labels.Data.Visitors, nil
 
 }
+
+
 
 func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	log := l.Log
 	if len(info) == 0 {
 		return nil
 	}
-
+	var first, last, reason string
 	var p Printer
 	var exist bool
-	var model string = l.PrinterQueue[0] // pop the printer queue
+	var model string = l.PrinterQueue[0] // get printer from printer queue
 	if p, exist = l.Printers[model]; !exist {
 		return fmt.Errorf("missing printer model:%v", model)
 	}
@@ -253,7 +206,7 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
 	// Find the first and last name
-	var first, last, reason string
+	
 
 	for key, data := range info {
 		log.V(1).Printf("key:%v\n", key)
@@ -271,17 +224,6 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 			if reason, exist = filterList[data.(string)]; !exist {
 				reason = "Visitor"
 			}
-			if reason == "Forgot Badge" {
-				key := strings.ToLower(last + first)
-				if c, exist := clients[key]; exist {
-					reason = "Member"
-					s := strings.ToLower(c[9])
-					if strings.Contains(s, "staff") {
-						reason = "Staff"
-					}
-				}
-			}
-			temp = strings.Replace(temp, "Visitor", reason, -1)
 		default:
 			dataType := fmt.Sprintf("%T", data)
 			switch dataType {
@@ -292,6 +234,25 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 			}
 		}
 	}
+	/*-----------------------------------------------------------------
+	 * Since the order of the keys is random, we have to wait till all
+	 * the keys have been processed to see if the person is a staff
+	 *---------------------------------------------------------------*/
+	if reason == "Forgot Badge" {
+		reason = "Visitor"
+		key := strings.ToLower(last + first)
+		if c, exist := l.Clients[key]; exist {
+			reason = "Member"
+			if len(c) > 7 {
+				s := strings.ToLower(c[7])
+				if strings.Contains(s, "staff") {
+					reason = "Staff"
+				}
+			}
+			log.V(1).Printf("Reason:%v\n",reason)
+		}
+	}
+	temp = strings.Replace(temp, "Visitor", reason, -1)
 	/*-----------------------------------------------------------------
 	* Store the label in the queue
 	*----------------------------------------------------------------*/
@@ -328,34 +289,23 @@ func (l *LabelClient) ProcessLabelQueue() (err error) {
 	 * Print all in the queue
 	 * -------------------------------------------------------------*/
 	var out []byte
-	var lines []string
 	for model, p := range l.Printers {
-		log.V(2).Printf("processLabels there are %v printers. key/model:%v length:%v\n", len(l.Printers), model, len(p.JobQueue))
+		log.V(2).Printf("processLabels there are %v printers. key/model:%v jobqueue length:%v\n", len(l.Printers), model, len(p.JobQueue))
+		if len(l.Printers) > 1 {
+		   log.V(0).Printf("more than one printer:%v\n",l.Printers)
+		}
 		for _, j := range p.JobQueue {
 			// delete and write the temp.glables file
 			os.Remove("temp.glabels")
 			if err := os.WriteFile("temp.glabels", []byte(j.Label), 0666); err != nil {
 				return fmt.Errorf("write to temp.glabels error:%v", err)
 			}
+			// Then print it using the glabels-batch.qt command
 			if out, err = exec.Command("glabels-batch-qt", "--printer="+p.PrinterModel, "temp.glabels").CombinedOutput(); err != nil {
 				return fmt.Errorf("glabels-batch-qt --printer=%v temp.glabels  error:%v  output:%v", p.PrinterModel, err, string(out))
 			}
 			j.Start = time.Now()
-			/*-----------------------------------------------------
-			 * Get the job number of the last print.  Should be the
-			 * last entry in the lpstat output
-			 *----------------------------------------------------*/
-			if out, err = exec.Command("lpstat", "-W", "not-completed").CombinedOutput(); err != nil || len(out) == 0 {
-				log.V(0).Printf("lpstat -W all\n  error:%v\n  output:%v\n", err, string(out))
-			}
-			lines := strings.Split(string(out), "\n")
-			// Debug print
-			for i, line := range lines {
-				log.V(1).Printf("%v lpstat:%v\n", i, line)
-			}
-			line := lines[len(lines)-2]
-			tokens := strings.Split(line, " ")
-			j.JobNumber = tokens[0]
+			j.JobNumber = l.getJobNumber()
 			log.V(0).Printf("PRINTING... [%v] name: %v %v reason:%v\n", j.JobNumber, j.First, j.Last, j.Reason)
 
 		}
@@ -365,67 +315,12 @@ func (l *LabelClient) ProcessLabelQueue() (err error) {
 	/*-----------------------------------------------------------------
 	 * Update printer status
 	 *---------------------------------------------------------------*/
-	if out, err = exec.Command("lpstat", "-p").CombinedOutput(); err != nil || len(out) == 0 {
-		log.V(0).Printf("lpstat -W all\n  error:%v\n  output:%v\n", err, string(out))
-	}
-	lines = strings.Split(string(out), "\n")
-	for _, line := range lines {
-		model, job, status, err := l.parseLpstatP(line)
-		switch {
-		case err != nil,
-			!strings.Contains(model, "QL") && !strings.Contains(model, "LabelWriter"):
-			continue
-		}
-
-		// Check each printer to see if there is a new job printing or idle
-		p := l.Printers[model]
-		p.PrinterStatus = status
-		switch {
-		case strings.Contains(status, "printing") && p.CurrentJob != job:
-			p.CurrentJob = job
-			p.CurrentTime = time.Now()
-		case strings.Contains(status, "idle"):
-			p.CurrentJob = ""
-			p.CurrentTime = time.Time{} // should be 0 time
-		}
-		l.Printers[model] = p
-	} // for each line in "lpstat -p"
-
+	l.updateCUPSPrinter()
 	return nil
 }
-func (l *LabelClient) WaitTillIdle(seconds int) (isidle bool) {
-	log := l.Log
-	/*----------------------------------------------------------------
-	 * Print all in the queue
-	 * -------------------------------------------------------------*/
-	var out []byte
-	var lines []string
-	isidle = false
-	for i := 0; i < seconds && !isidle; i++ {
-		isidle = true
-		if out, err := exec.Command("lpstat", "-p").CombinedOutput(); err != nil || len(out) == 0 {
-			log.V(0).Printf("lpstat -W all\n  error:%v\n  output:%v\n", err, string(out))
-		}
-		lines = strings.Split(string(out), "\n")
-		for _, line := range lines {
-			model, _, status, err := l.parseLpstatP(line)
-			if err != nil {
-				continue
-			}
-			// Check each printer to see if there is a job printing
-			if (strings.Contains(model, "QL") || strings.Contains(model, "LabelWriter")) &&
-				status == "printing" {
-				isidle = false
-				break
-			}
-		}
 
-		time.Sleep(time.Second)
-	}
-	return
-}
-
-func (c *LabelClient) parseLpstatP(line string) (model, job, status string, err error) {
+func (l *LabelClient) parseLpstatP(line string) (model, job, status string, err error) {
+	// log := l.Log  // not used
 	sentences := strings.Split(line, ".")
 	if len(sentences) < 2 {
 		return "", "", "", fmt.Errorf("line does not have 2 sentences:%v", line)
@@ -452,26 +347,36 @@ func (c *LabelClient) parseLpstatP(line string) (model, job, status string, err 
 
 }
 
-// Monitor print queues for all the printers and wait till they are
-// empty
-func (c *LabelClient) IsStuck(p Printer) bool {
-	if !p.CurrentTime.IsZero() && time.Since(p.CurrentTime) > 60*time.Second {
-		return true
-	}
-	return false
-}
+
 
 // Print a test page to each printer
 func (l *LabelClient) ExportTestToGlabels() error {
+	log := l.Log
+	// cd to Mylabels
+	home, _ := os.UserHomeDir()
+	if err := os.Chdir(filepath.Join(home, "Mylabels")); err != nil {
+		log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
+		l.dirSetup()
+	}
+	// read the printer diagostic label
+	labelByte, err := os.ReadFile("printer.glabels")
+	if err != nil {
+		log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+	}
+	template := string(labelByte)
 	for _, p := range l.Printers {
-		var temp string = p.LabelTemplate
+		var temp string = template
 		// Get the date right now and update the label
 		t := time.Now()
-		nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
+	    nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 		temp = strings.Replace(temp, "${Date}", nowDate, -1)
-		temp = strings.Replace(temp, "${nameFirst}", "WELCOME TO MAKERNEXUS", -1)
-		temp = strings.Replace(temp, "${nameLast}", "", -1)
-		temp = strings.Replace(temp, "Visitor", "Test Label", -1)
+		// print the filterlist (up to 10)
+		i := 1
+		for key,_ := range l.FilterList {
+			s := fmt.Sprintf("${filter%v}",i)
+			temp = strings.Replace(temp, s, key, -1)
+			i++
+		}
 		// cd to the Mylabel directory so we can write files
 		if err := os.Chdir(l.LabelDir); err != nil {
 			log.Fatal("Label directory does not exist.")
@@ -481,13 +386,16 @@ func (l *LabelClient) ExportTestToGlabels() error {
 		if err := os.WriteFile("temp.glabels", []byte(temp), 0666); err != nil {
 			log.Fatalf("Error writing label file error:%v\n", err)
 		}
-
+		if out, err := exec.Command("glabels-batch-qt", "--printer="+p.PrinterModel, "temp.glabels").CombinedOutput(); err != nil {
+			return fmt.Errorf("glabels-batch-qt --printer=%v temp.glabels  error:%v  output:%v", p.PrinterModel, err, string(out))
+		}
 	}
 	return nil
 }
 
 // Create directories
 func (l *LabelClient) dirSetup() error {
+	log := l.Log
 	home, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
@@ -508,7 +416,7 @@ func (l *LabelClient) dirSetup() error {
 }
 
 func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (err error) {
-
+	log := l.Log
 	rdr := bufio.NewReader(input)
 	w := tabwriter.NewWriter(output, 0, 0, 1, ' ', 0)
 
@@ -630,6 +538,7 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 }
 
 func (l *LabelClient) Print(labels []Visitor ) (err error) {
+	// log := l.Log
 	// log.V(1).Printf("There are %v labels\n",len(labels))
 	for _, label := range labels {
 		// take the OVL info add label to print queue 
@@ -642,4 +551,190 @@ func (l *LabelClient) Print(labels []Visitor ) (err error) {
 	}
 	return nil
 }
+
+func (l *LabelClient) CountUSBPrinters() {
+	var (
+		out []byte
+		err error
+	)
+	log := l.Log	
+	out, err = exec.Command("lsusb").CombinedOutput()
+	if err != nil {
+		log.Fatalf("exec.Command() failed error:%v\n", err)
+	}
+	log.V(1).Printf("lsusb:%v", string(out))
+	lines := strings.Split(string(out), "\n")
+	if len(lines) == 0 {
+		log.Fatalf("No Printers Found")
+	}
+	// count the number of brother or dymo printers
+	l.DymoCount = 0
+	l.BrotherCount = 0
+	for _, line := range lines {
+		switch {
+		case strings.Contains(line, "Brother"):
+			l.BrotherCount += 1
+		case strings.Contains(line, "LabelWriter"):
+			l.DymoCount += 1
+		}
+	}
+
+}	
+
+func (l *LabelClient) updateCUPSPrinter() {
+	var (
+		brother_count int = l.BrotherCount
+		dymo_count int = l.DymoCount
+		p Printer
+		manufacturer string
+		out []byte
+		err error
+		labelByte []byte
+		lines []string
+	)
+	log := l.Log
+	/*-----------------------------------------------------------------
+	 * Execute the lpstat -p command
+	 *---------------------------------------------------------------*/
+	out, err = exec.Command("lpstat", "-p").CombinedOutput()
+	if err != nil {
+		log.V(0).Fatalf("exec.Command() failed error:%v\n", err)
+	}
+	lines = strings.Split(string(out), "\n")
+	if len(lines) == 0 {
+		log.V(0).Fatalf("No Printers Found")
+	}
+    /*-----------------------------------------------------------------
+	 * Process output of the lpstat -p command.  Line by line.
+	 *---------------------------------------------------------------*/
+loop:
+	for _, line := range lines {
+		model, _, status, err := l.parseLpstatP(line)
+		if err != nil || status == "disabled" || model == "" {
+			continue loop
+		}
+		log.V(1).Printf("model:%v status:%v\n", model, status)
+		/*--------------------------------------------------------------
+		 * Filter out the non-label printers, and Only add printers
+		 * that are CURRENTLY attached to usb.
+		 * NOTE: the count is based on lsusb.  Code may get confused if
+		 *       we ever attach different printers from same brand. 
+		 *------------------------------------------------------------*/
+		switch {
+		case strings.Contains(model, "QL") && brother_count > 0:
+			manufacturer = "BROTHER"
+			brother_count -= 1
+		case strings.Contains(model, "LabelWriter") && dymo_count > 0:
+			manufacturer = "DYMO"
+			brother_count -= 1
+		default:
+			continue loop
+		}
+		/*--------------------------------------------------------------
+		 * If not exist, create a new printer
+		 * -----------------------------------------------------------*/
+		var exist bool
+		if p,exist = l.Printers[model]; !exist {
+			p.PrinterManufacturer = manufacturer
+			p.PrinterModel = model
+			p.CurrentJob = ""
+			labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
+			if err != nil {
+				log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+			}
+			p.LabelTemplate = string(labelByte)
+			p.JobQueue = make([]Job, 0)
+			log.V(1).Printf("add printer [%v:%v]\n", p.PrinterManufacturer, p.PrinterModel)
+		}	
+		/*--------------------------------------------------------------
+		 * Update status
+		 * -----------------------------------------------------------*/
+		p.CurrentTime = time.Time{}
+		p.PrinterStatus = status
+		l.Printers[model] = p
+		l.PrinterQueue = append(l.PrinterQueue, model)
+	} // for each line in lpstat -p
 	
+}	
+
+// issue lpstat -W not-completed, and return results
+func (l *LabelClient) GetNotCompleted() (lines []string) {
+	var (
+		out []byte
+		err error
+	)
+	log := l.Log
+    /*------------------------------------------------------------------
+     * Execute lpstat -W not-completed
+     *----------------------------------------------------------------*/	
+	if out, err = exec.Command("lpstat", "-W", "not-completed").CombinedOutput(); err != nil {
+		log.V(0).Printf("lpstat -W all\n  error:%v\n  output:%v\n", err, string(out))
+		return 
+	}
+	lines = strings.Split(string(out), "\n")
+	return 
+}
+
+
+// This works because there is only this program printing on this
+// computer.  It grabs the last job in the queue.
+func (l *LabelClient) getJobNumber() string {
+	log   := l.Log
+    lines := l.GetNotCompleted()
+    if len(lines) < 2 {
+		return ""
+	}
+	// Debug print
+	for i, line := range lines {
+		log.V(1).Printf("%v lpstat:%v\n", i, line)
+	}
+	/*------------------------------------------------------------------
+	 * The command should have a blank line at the end of the response
+	 * So grab the second to the last line.
+	 *----------------------------------------------------------------*/
+	line := lines[len(lines)-2]
+	tokens := strings.Split(line, " ")
+	if len(tokens) < 1 {
+		return ""
+	}
+	return tokens[0]
+}
+// EXPERIMENTAL.  Polls lpstat -p till printers are not printing
+// For test mostly.  Not sure this works
+func (l *LabelClient) WaitTillIdle(seconds int) (isidle bool) {
+	log := l.Log
+	var out []byte
+	var lines []string
+	isidle = false
+	for i := 0; i < seconds && !isidle; i++ {
+		isidle = true
+		if out, err := exec.Command("lpstat", "-p").CombinedOutput(); err != nil || len(out) == 0 {
+			log.V(0).Printf("lpstat -W all\n  error:%v\n  output:%v\n", err, string(out))
+		}
+		lines = strings.Split(string(out), "\n")
+		for _, line := range lines {
+			model, _, status, err := l.parseLpstatP(line)
+			if err != nil {
+				continue
+			}
+			// Check each printer to see if there is a job printing
+			if (strings.Contains(model, "QL") || strings.Contains(model, "LabelWriter")) &&
+				status == "printing" {
+				isidle = false
+				break
+			}
+		}
+
+		time.Sleep(time.Second)
+	}
+	return
+}
+
+// EXPERIMENTAL. Monitor print queues for all the printers and wait till they are
+// empty.  For test.  Not sure this works
+func (c *LabelClient) IsStuck(p Printer) bool {
+	if !p.CurrentTime.IsZero() && time.Since(p.CurrentTime) > 60*time.Second {
+		return true
+	}
+	return false
+}

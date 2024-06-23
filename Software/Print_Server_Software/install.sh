@@ -20,7 +20,7 @@ echo path:$bash_path
 # Install GO
 #-------------------------------------------------
 if type "go" > /dev/null; then
-  echo "go is installed"
+cd   echo "go is installed"
 else
   set +e 
   sudo rm -rf /usr/local/go  
@@ -31,7 +31,7 @@ else
     sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
   elif  [[ "$ARCH" == armv* ]]; then
     wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
-    sudo tar -c /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
+    sudo tar -C /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
   else
     echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
     exit 3
@@ -80,6 +80,7 @@ if [[ ":$PATH:" == *":$HOME/.bin:"* ]]; then
   echo ".bin is installed"
 else
   echo "export PATH=$HOME/.bin:$PATH" >> .bashrc
+  source ~/.bashrc
   echo ".bin was added to your path."
 fi
 #-------------------------------------------------------
@@ -90,6 +91,9 @@ if [ ! -f "printserver.go" ]; then
    echo "printserver.go is not in the directory with install script"
    exit 100
 fi
+sudo apt-get update
+sudo apt-get install libasound2-dev
+sudo apt-get install libudev-dev
 echo "building printserver.go"
 go build printserver.go
 cd "$HOME/.bin"
@@ -139,7 +143,7 @@ else
     cd $bash_path
     echo Installing Brother Drivers
     rm -rf ql800*
-    # wget "https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=lpql800eus&os=10041&dlid=dlfp100534_000&flang=178&type3=10261"
+    wget https://download.brother.com/welcome/dlfp100534/ql800pdrv-2.1.4-0.armhf.deb
     sudo dpkg -i "ql800pdrv-2.1.4-0.armhf.deb"
     echo "To verify cups installation,open chrome.  Go to: http://localhost:631/printers"
   else

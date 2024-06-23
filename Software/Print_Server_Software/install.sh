@@ -133,10 +133,14 @@ cp -f "$bash_path/DYMO.glabels" DYMO.glabels
 cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
 cp -f "$bash_path/printer.glabels" printer.glabels
 #-----------------------------------------------------
-# Install Brother printer driver
+# Install Brother printer driver.  Set the media 2.4" diameter
+# If media is not set correctly, printer will not print
 #----------------------------------------------------
 cd "$HOME/Downloads"
 if [[ $(lpstat -a) = *QL-800* ]]; then
+  lpoptions -p QL-800 -o media=24Dia
+  lpoptions -p QL-800-1 -o media=24Dia
+  lpoptions -p QL-800-2 -o media=24Dia
   echo "QL-800 printer driver is installed"
 else
   if  [[ "$ARCH" == armv* ]]; then

@@ -91,20 +91,20 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	}
 	lastIndex := -1
 	firstIndex := -1
-	for i,d := range cols {
+	for i, d := range cols {
 		switch d {
-			case "lastName":
-				lastIndex = i
-			case "firstName":
-				firstIndex = i
-		}		
+		case "lastName":
+			lastIndex = i
+		case "firstName":
+			firstIndex = i
+		}
 	}
 	log.V(1).Println(cols)
 	/*----------------------------------------------------------
 	 * Convert the object returned from db to a map for lookup later
 	 * the map key is lastName+firstName (lower case)
 	 *-----------------------------------------------------------
-	 * NOTE: the clientinfo table is a log of rfid scans. there will be 
+	 * NOTE: the clientinfo table is a log of rfid scans. there will be
 	 * duplicate entries by design
 	 *---------------------------------------------------------*/
 	data = make(map[string][]string)
@@ -115,7 +115,7 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	for i := range rawResult {
 		dest[i] = &rawResult[i] // Put pointers to each string in the interface slice
 	}
-    for r.Next() {
+	for r.Next() {
 		err = r.Scan(dest...)
 		if err != nil {
 			return nil, fmt.Errorf("error importing database record:%v", err)
@@ -128,7 +128,7 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 				result[i] = string(raw)
 			}
 		}
-		key := strings.ToLower(result[lastIndex]+result[firstIndex])
+		key := strings.ToLower(result[lastIndex] + result[firstIndex])
 		data[key] = result
 	}
 
@@ -171,17 +171,17 @@ func (c *visitor_config) dirSetup() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	configPath := filepath.Join(home, ".makerNexus")
-	if err := os.Chdir(configPath); err != nil {
-		return fmt.Errorf("error changing to home directory")
-	}
+	configPath := filepath.Join(home, ".makernexus")
 	/*----------------------------------------------------------------
 	 * if directory does not exist then create it
 	 *----------------------------------------------------------------*/
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		if err := os.Mkdir(".makerNexus", 0777); err != nil {
+		if err := os.Mkdir(".makernexus", 0777); err != nil {
 			return fmt.Errorf("error creating directory .makernexus")
 		}
+	}
+	if err := os.Chdir(configPath); err != nil {
+		return fmt.Errorf("error changing to home directory")
 	}
 	return nil
 }

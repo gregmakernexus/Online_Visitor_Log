@@ -119,6 +119,7 @@ cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
 cd "$HOME/.bin"
 mv -f "$bash_path/printserver/printserver" printserver
 cp -f "$bash_path/ovlregister.sh" ovlregister.sh
+cp -f "$bash_path/printserver.sh" printserver.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
 else
@@ -129,6 +130,12 @@ if [[ $(ls) = *ovlregister.sh* ]]; then
   echo "ovlregister.sh is installed"
 else
   exit 103
+fi
+if [[ $(ls) = *printserver.sh* ]]; then
+  chmod +x printserver.sh
+  echo "printserver.sh is installed"
+else
+  exit 104
 fi
 #-------------------------------------------------------
 #  Compile printconfig.go and copy to .bin

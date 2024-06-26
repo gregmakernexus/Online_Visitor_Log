@@ -20,7 +20,7 @@ echo path:$bash_path
 # Install GO
 #-------------------------------------------------
 if type "go" > /dev/null; then
-cd   echo "go is installed"
+   echo "go is installed"
 else
   set +e 
   sudo rm -rf /usr/local/go  
@@ -96,12 +96,38 @@ sudo apt-get install libasound2-dev
 sudo apt-get install libudev-dev
 echo "building printserver.go"
 go build printserver.go
+#------------------------------------------------------
+# install test software including selenium, and a load
+# of python dependencies
+#-----------------------------------------------------
+cd
+if [ ! -d "$HOME/test" ]; then
+	mkdir ~/test
+  cd ~/test
+  sudo apt-get install chromium-chromedriver
+  cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
+  cp -f "$bash_path/printserver/requirements.txt" requirements.txt
+  python3 -m venv env
+  source env/bin/activate 
+  pip install -r requirements.txt
+  echo "python environment built."
+fi
+#---------------------------------------------------
+# copy files to .bin directory
+#----------------------------------------------------
 cd "$HOME/.bin"
-cp -f "$bash_path/printserver/printserver" printserver
+mv -f "$bash_path/printserver/printserver" printserver
+cp -f "$bash_path/ovlregister.sh" ovlregister.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
 else
-  exit 101
+  exit 102
+fi
+if [[ $(ls) = *ovlregister.sh* ]]; then
+  chmod +x ovlregister.sh
+  echo "ovlregister.sh is installed"
+else
+  exit 103
 fi
 #-------------------------------------------------------
 #  Compile printconfig.go and copy to .bin
@@ -114,7 +140,7 @@ fi
 echo "building printconfig.go"
 go build printconfig.go
 cd "$HOME/.bin"
-cp -f "$bash_path/printconfig/printconfig" printconfig
+mv -f "$bash_path/printconfig/printconfig" printconfig
 if [[ $(ls) = *printconfig* ]]; then
   echo "printconfig is installed"
 else

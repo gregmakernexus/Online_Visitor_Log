@@ -44,7 +44,7 @@ def main():
         s = Service('/usr/bin/chromedriver')
         driver = webdriver.Chrome(service=s)
         # driver.maximize_window()
-        driver.get("https://rfidsandbox.makernexuswiki.com/v1/OVLsignin.php")
+        driver.get("https://rfidsandbox.makernexuswiki.com/v2/OVLsignin.php")
         driver.find_element(By.ID, "mainNameFirst").send_keys(visitor[0])
         driver.find_element(By.ID, "mainNameLast").send_keys(visitor[1])
         driver.find_element(By.ID, "email").send_keys(visitor[2])

@@ -27,7 +27,8 @@ import (
 //  3. no filter specified This is the printer at the normal mod station.  If we are using #1 above.  This printer
 //     must be power down.
 var toMonth = []string{"", "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."}
-var log *debug.DebugClient
+
+// var log *debug.DebugClient
 
 type Visitor map[string]any
 type VisitorList struct {
@@ -122,7 +123,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 *---------------------------------------------------------------*/
 	l.URL = dbURL
 	l.URLWithParms = l.URL + "?vrss="
-	for key, _ := range l.FilterList {
+	for key := range l.FilterList {
 		l.Reasons = append(l.Reasons, key)
 		l.URLWithParms = l.URLWithParms + key + "|"
 	}
@@ -164,7 +165,7 @@ func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	// Do the http.get
 	log := l.Log
 	labels := new(VisitorList)
-
+	log.V(1).Printf("http get parms:%v\n", l.URLWithParms)
 	html, err := l.connection.Get(l.URLWithParms)
 	if err != nil {
 		log.Fatal(err)
@@ -176,6 +177,7 @@ func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 		log.Fatal(err)
 	}
 	html.Body.Close()
+	log.V(1).Printf("ReadOVL results:%v\n", string(results))
 	// unmarshall the json object
 	if err := json.Unmarshal(results, labels); err != nil {
 		fmt.Printf("unmarshall error:%v\n", err)
@@ -303,7 +305,7 @@ func (l *LabelClient) ProcessLabelQueue() (err error) {
 			if out, err = exec.Command("glabels-batch-qt", "--printer="+p.PrinterModel, "temp.glabels").CombinedOutput(); err != nil {
 				return fmt.Errorf("glabels-batch-qt --printer=%v temp.glabels  error:%v  output:%v", p.PrinterModel, err, string(out))
 			}
-			j.Start = time.Now()
+			// j.Start = time.Now()
 			j.JobNumber = l.getJobNumber()
 			log.V(0).Printf("PRINTING... [%v] name: %v %v reason:%v\n", j.JobNumber, j.First, j.Last, j.Reason)
 
@@ -369,7 +371,7 @@ func (l *LabelClient) ExportTestToGlabels() error {
 		temp = strings.Replace(temp, "${Date}", nowDate, -1)
 		// print the filterlist (up to 10)
 		i := 1
-		for key, _ := range l.FilterList {
+		for key := range l.FilterList {
 			s := fmt.Sprintf("${filter%v}", i)
 			temp = strings.Replace(temp, s, key, -1)
 			i++
@@ -502,6 +504,15 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 		case tokens[0] == "reset", tokens[0] == "r":
 			l.FilterList = filterList
 		case tokens[0] == "exit", tokens[0] == "e":
+			// Update db read parameters
+			l.URLWithParms = l.URL + "?vrss="
+			for key := range l.FilterList {
+				l.Reasons = append(l.Reasons, key)
+				l.URLWithParms = l.URLWithParms + key + "|"
+			}
+			l.URLWithParms = l.URLWithParms[:len(l.URLWithParms)-1]
+			log.V(1).Printf("DB Url:%v\n", l.URLWithParms)
+			// Write config file to disk
 			var configBuf []byte
 			if configBuf, err = json.Marshal(l); err != nil {
 				log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
@@ -530,7 +541,7 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 		} // switch
 
 	} // for
-	return
+
 }
 
 func (l *LabelClient) Print(labels []Visitor) (err error) {
@@ -558,14 +569,14 @@ func (l *LabelClient) CountUSBPrinters() {
 	if err != nil {
 		log.Fatalf("exec.Command() failed error:%v\n", err)
 	}
+	l.DymoCount = 0
+	l.BrotherCount = 0
 	log.V(1).Printf("lsusb:%v", string(out))
 	lines := strings.Split(string(out), "\n")
 	if len(lines) == 0 {
-		log.Fatalf("No Printers Found")
+		return
 	}
 	// count the number of brother or dymo printers
-	l.DymoCount = 0
-	l.BrotherCount = 0
 	for _, line := range lines {
 		switch {
 		case strings.Contains(line, "Brother"):

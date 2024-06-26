@@ -5,44 +5,47 @@ import (
 	// "fmt"
 	"os"
 	"time"
+
 	// "os/exec"
 	// "time"
-	"path/filepath"
 	"io"
+	"path/filepath"
 
 	client "example.com/clientinfo"
 	"example.com/debug"
 	label "example.com/label"
-	"github.com/hajimehoshi/oto"
 	"github.com/hajimehoshi/go-mp3"
+	"github.com/hajimehoshi/oto"
 )
 
 /*---------------------------------------------------------------
  * CLI parameters
  *--------------------------------------------------------------*/
-// var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v1/OVLindex.html","Database Read URL") 
-var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v1/OVLvisitorbadges.php", "Database Read URL")
+// var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v1/OVLindex.html","Database Read URL")
+var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v2/OVLvisitorbadges.php", "Database Read URL")
 var logLevel = flag.Int("V", 0, "Logging level for debug messages")
+
 /*---------------------------------------------------------------
  * global variables
  *-------------------------------------------------------------*/
-var clients map[string][]string
+// var clients map[string][]string
 var log *debug.DebugClient
 var l *label.LabelClient
-var err error
-var rdr *os.File = os.Stdin
-var alarmCount int
-var alarmSeconds int
+
+// var err error
+// var rdr *os.File = os.Stdin
+// var alarmCount int
+// var alarmSeconds int
 var firstLine string
-	
+
 func main() {
 	// init command line flags
 	flag.Parse()
 	var err error
-	
+
 	log = debug.NewLogClient(*logLevel)
-	l = label.NewLabelClient(log,*dbURL)
-	
+	l = label.NewLabelClient(log, *dbURL)
+
 	// load the clientinfo table into map for lookup
 	l.Clients, err = client.NewClientInfo(log)
 	if err != nil {
@@ -59,13 +62,13 @@ func main() {
 	// Print Test Page
 	l.ExportTestToGlabels()
 	waitForPrinterOK()
-	
+
 	var labels []label.Visitor
-	
+
 	for i := 1; ; i++ {
-	    /*--------------------------------------------------------------
-	     *  http get to read the the new ovl entries to print
-	     *------------------------------------------------------------*/
+		/*--------------------------------------------------------------
+		 *  http get to read the the new ovl entries to print
+		 *------------------------------------------------------------*/
 		if labels, err = l.ReadOVL(*dbURL); err != nil {
 			log.V(0).Printf("get from webserver failed. Error:%v\n", err)
 			return
@@ -78,74 +81,74 @@ func main() {
 		 * if labels to print, add them to the print queue
 		 *------------------------------------------------------------*/
 		if len(labels) > 0 {
-			if err = l.Print(labels);err != nil {
-				log.V(0).Printf("%v\n",err)
+			if err = l.Print(labels); err != nil {
+				log.V(0).Printf("%v\n", err)
 			}
 		}
 		/*-------------------------------------------------------------
 		 * Wait here while nothing is printing
 		 *-----------------------------------------------------------*/
 		waitForPrinterOK()
-		time.Sleep(time.Second)	
+		time.Sleep(time.Second)
 	} // for infinite loop
 }
 func waitForPrinterToAppear() (err error) {
 	alarmCount := 0
 	alarmSeconds := 0
-	
-	for l.BrotherCount + l.DymoCount == 0 {
-	  if alarmCount >= 5 {
-		  log.Fatalf("Alarm Count Exceeded number:%v\n",alarmCount)
-	  }
-	  if alarmCount == 0 || alarmSeconds > 30 {
-		log.V(0).Printf("No Label Printers Detected\n")
-		play("sound-effect-doorbell-rings-double-200533.mp3")
-		alarmSeconds = 0
-		alarmCount++
-	  }
-	  alarmSeconds++
-	  time.Sleep(time.Second)
-	  l.CountUSBPrinters()
+	l.CountUSBPrinters()
+	for l.BrotherCount+l.DymoCount == 0 {
+		if alarmCount >= 5 {
+			log.Fatalf("Alarm Count Exceeded number:%v\n", alarmCount)
+		}
+		if alarmCount == 0 || alarmSeconds > 30 {
+			log.V(0).Printf("No Label Printers Detected\n")
+			play("sound-effect-doorbell-rings-double-200533.mp3")
+			alarmSeconds = 0
+			alarmCount++
+		}
+		alarmSeconds++
+		time.Sleep(time.Second)
+		l.CountUSBPrinters()
 	}
-	if alarmCount > 0 { 
-		log.V(0).Printf("Printers. Brother:%v Dymo:%v\n",l.BrotherCount,l.DymoCount)
+	if alarmCount > 0 {
+		log.V(0).Printf("Printers. Brother:%v Dymo:%v\n", l.BrotherCount, l.DymoCount)
 	}
-    return 
+	return
 }
 func waitForPrinterOK() (err error) {
-alarmCount := 0
-alarmSeconds := 0
+	alarmCount := 0
+	alarmSeconds := 0
 loop:
 	for {
 		lines := l.GetNotCompleted()
 		switch {
-		case len(lines) == 0,         // nothing to print
-			 len(lines) == 1 && lines[0] == "":    
+		case len(lines) == 0, // nothing to print
+			len(lines) == 1 && lines[0] == "":
 			alarmSeconds = 0
 			firstLine = ""
 			break loop
-		case firstLine != lines[0]:   // new job at the front of queue
+		case firstLine != lines[0]: // new job at the front of queue
 			log.V(1).Printf("different job in at head of queue\n")
 			alarmCount = 0
 			alarmSeconds = 0
 			firstLine = lines[0]
 			return
-		case firstLine == lines[0]:   // STUCK!
+		case firstLine == lines[0]: // STUCK!
 			log.V(1).Printf("same line at head of queue\n")
 			switch {
-			  // 5 alarms, shutdown	
-			  case alarmCount > 5:
-				log.Fatalf("Alarm Count Exceeded number:%v",alarmCount)
-			  // no alarms and we are stuck for 5 seconds
-			  case alarmCount == 0 && alarmSeconds > 10:
-				log.V(0).Printf("Printer Job Stuck.  Check printer paper. jobs:%v\nlength:%v,%v\n", 
-							len(lines),len(lines[0]),lines[0])
+			// 5 alarms, shutdown
+			case alarmCount > 5:
+				log.Fatalf("Alarm Count Exceeded number:%v", alarmCount)
+			// no alarms and we are stuck for 5 seconds
+			case alarmCount == 0 && alarmSeconds > 10:
+				log.V(0).Printf("Printer Job Stuck.  Check printer paper. jobs:%v\nlength:%v,%v\n",
+					len(lines), len(lines[0]), lines[0])
 				play("sound-effect-doorbell-rings-double-200533.mp3")
 				alarmCount++
 				continue loop
-			  case alarmCount > 0 && alarmSeconds > 120:
-				log.V(0).Printf("Printer Job Stuck.  Check printer paper. jobs:%v\nlength:%v,%v\n", 
-							len(lines),len(lines[0]),lines[0])
+			case alarmCount > 0 && alarmSeconds > 120:
+				log.V(0).Printf("Printer Job Stuck.  Check printer paper. jobs:%v\nlength:%v,%v\n",
+					len(lines), len(lines[0]), lines[0])
 				play("sound-effect-doorbell-rings-double-200533.mp3")
 				time.Sleep(time.Duration(10) * time.Second)
 				alarmSeconds = 0
@@ -155,7 +158,7 @@ loop:
 			time.Sleep(time.Second)
 			alarmSeconds++
 		}
-		
+
 	} // for
 	return
 }
@@ -165,7 +168,7 @@ func play(audiofile string) error {
 	if err != nil {
 		log.Fatalf("Error getting user home directory:%v\n", err)
 	}
-	path := filepath.Join(home,"Music",audiofile)
+	path := filepath.Join(home, "Music", audiofile)
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -191,8 +194,3 @@ func play(audiofile string) error {
 	}
 	return nil
 }
-
-
-
-
-

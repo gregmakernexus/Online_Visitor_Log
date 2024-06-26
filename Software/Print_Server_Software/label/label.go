@@ -75,7 +75,7 @@ type LabelClient struct {
 }
 
 var filterList = map[string]string{
-	"classOrworkshop": "Class/Workshop",
+	"classOrworkshop": "Class",
 	"makernexusevent": "Event",
 	"camp":            "Kids Camp",
 	"volunteering":    "Volunteer",

@@ -105,13 +105,14 @@ if [ ! -d "$HOME/test" ]; then
 	mkdir ~/test
   cd ~/test
   sudo apt-get install chromium-chromedriver
-  cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
   cp -f "$bash_path/printserver/requirements.txt" requirements.txt
   python3 -m venv env
   source env/bin/activate 
   pip install -r requirements.txt
   echo "python environment built."
 fi
+cd ~/test
+cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
 #---------------------------------------------------
 # copy files to .bin directory
 #----------------------------------------------------

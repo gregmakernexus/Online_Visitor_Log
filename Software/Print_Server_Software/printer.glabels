@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<Glabels-document version="4.0">
+  <Template part="DK-2205" size="roll" height="283.465pt" brand="Brother" width="175.691pt" description="Continuous label tape" roll_width="189.921pt">
+    <Label-continuous max_height="70.8661pt" id="0" height="283.465pt" width="175.691pt" min_height="70.8661pt" default_height="283.465pt">
+      <Markup-margin y_size="8.50394pt" x_size="4.25197pt"/>
+      <Layout dx="0pt" y0="0pt" dy="0pt" nx="1" x0="0pt" ny="1"/>
+    </Label-continuous>
+  </Template>
+  <Objects id="0" rotate="true">
+    <Object-image a2="0" a3="1" a4="0" w="34pt" a5="0" shadow_color="0xff" x="9pt" y="10pt" h="34pt" shadow_x="1.3pt" shadow_y="1.3pt" shadow_opacity="0.5" lock_aspect_ratio="false" shadow="false" src="maker_nexus_logo.png" a0="1" a1="0"/>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="121pt" x="10pt" lock_aspect_ratio="false" y="65pt" auto_shrink="false">
+      <p>${filter1}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="22pt" shadow_opacity="0.5" font_size="12" shadow="false" valign="top" line_spacing="1" w="149pt" x="46pt" lock_aspect_ratio="false" y="15pt" auto_shrink="false">
+      <p>${Date}</p>
+    </Object-text>
+    <Object-line a2="0" a3="1" a4="0" a5="0" shadow_color="0xff" x="9pt" y="47pt" shadow_x="1.3pt" shadow_y="1.3pt" shadow_opacity="0.5" dx="263pt" dy="1pt" shadow="false" line_color="0xff" line_width="1pt" a0="1" a1="0"/>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="124pt" x="9pt" lock_aspect_ratio="false" y="137pt" auto_shrink="false">
+      <p>${filter5}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="126pt" x="9pt" lock_aspect_ratio="false" y="118pt" auto_shrink="false">
+      <p>${filter4}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="123pt" x="9pt" lock_aspect_ratio="false" y="101pt" auto_shrink="false">
+      <p>${filter3}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="123pt" x="9pt" lock_aspect_ratio="false" y="84pt" auto_shrink="false">
+      <p>${filter2}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="137pt" x="132pt" lock_aspect_ratio="false" y="65pt" auto_shrink="false">
+      <p>${filter6}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="139pt" x="134pt" lock_aspect_ratio="false" y="136pt" auto_shrink="false">
+      <p>${filter10}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="139pt" x="133pt" lock_aspect_ratio="false" y="118pt" auto_shrink="false">
+      <p>${filter9}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="139pt" x="133pt" lock_aspect_ratio="false" y="100pt" auto_shrink="false">
+      <p>${filter8}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="normal" h="20pt" shadow_opacity="0.5" font_size="8" shadow="false" valign="top" line_spacing="1" w="139pt" x="133pt" lock_aspect_ratio="false" y="83pt" auto_shrink="false">
+      <p>${filter7}</p>
+    </Object-text>
+    <Object-text align="left" font_italic="false" a0="1" font_family="Sans" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" color="0xff" a4="0" shadow_color="0xff" font_underline="false" a5="0" wrap="word" font_weight="bold" h="24pt" shadow_opacity="0.5" font_size="10" shadow="false" valign="top" line_spacing="1" w="255pt" x="8pt" lock_aspect_ratio="false" y="47pt" auto_shrink="false">
+      <p>Labels to be printed here:</p>
+    </Object-text>
+  </Objects>
+  <Data>
+    <File encoding="base64" name="maker_nexus_logo.png" mimetype="image/png">iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAMAAAAOusbgAAAAVFBMVEUAf3z///9WqqgAgn8Zi4kAhIF0uLf1+vq43NpMpaMjkY1crat2u7llsq9/v72v19bd7u7O5+Y7nZqf0M+GwsA2mpjE4uHf7+8pk5GLxMPs9fWczswmaouQAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADyUlEQVRogcXb2VbjMAwAUAnXlAG6whQ6/P9/TtM0iRdJXiIbPcwZHDX32EnkrIC/FFD+k+3BGnDDbk7N4Wdgw7y0grc8OuMNYJNmx3FXhc+Z6hh7LdgWsUNsNODcMfYjubVTcHlvpzivgXfV7BDbangVO0QdXLYr03GsgBVYEA5rDs4oU5lRBv9RczmZbq47drkgKxkJ67oAr5mwMgvkLkbA+i5VQWO4hUv0OYK1t+8U4XYO4VYuwIcIax6/YWwluKEbVBLo5/oydHS9MyIXbrmBx2Dg5q4rQ1fXqWAL/NYDBgLu4i7y/J/689iyeAnhTu7cZejcYYB3H+7mTl2G3h0G+HThju6jy+O/f38L7uqO5esOr7ps2EgLn8f49ltnODzfyR8BHOY6afkYT37r2wTH6bnuHRayaRgecDTSuVsdHzCfLcNkep77gNlsBv4U4LSMDsxlMzBIcEpGD2ZqnwjH9ydz6jcGMF2ERJhNzzhOHBg/C+CdDCf3Vg/GSz5sEnBinwlgdm+J4VvlIetlQvYo7wK0BP5IdUlykfo7ExaPA2H4nKW8zMInYK6IDbcq8vKSlVl4x85EnOy7SLRmwcIUSMuBi1T7JkqPYSvNvYQcusuSi9P4vqrHlLw0GH/BLZ4c+WslHI624xL13L2vMxWHStgtDp5ryYnEu4tWBS+/dWW3v/QMFsvVMPk0xQQ58S/nRfUwsSPbOIeV18DMvT8G9rLtOtgfbUPmMPI0ZcawyYC9ic8wOU4QD5NzK1e40kU2bI4Tuwx4Q06L0UpN5IonhNEzzRjeAxIXXcRK7w1WzomX8vAR8JQFAwbXdjIMKVg82fPabHDGkIBBDQabkcPJq+DiHAm2AxyfdOnAzrOACD4M8EsreHmIW3a1uB6eS0l3eKp5DBxtZD34UfNC+MjefFGDR5m5B9IUvmdycDhP6MIQwZcJDn9uxtCCIYSRg7NWVgCD/2bHci/TueboEbjANV3Wgb/T6Wrx5cI9u4we3O5JeRgXH+7XZQxgjXeZcmIbwr26jBHcR0YC7rF/nSm4R5eRhIlT+2au/1ZE6yeMVw5uPNj+LRLsJ6MAt5RRhPed3Ph9rtdG7r8U3GjXPoRMDDepYD+RQsAN5Ki/NKy+ncPty8L4o+qSBN2q+M4v4/KvOWux3Mv0LEzd/6qIK7d6HlbptLByAV4tSx8OiPBKWl6zDFPPhDND/FghDddeSSa/gErDNTT/lUIRjGXlO++jp0yYfp5RNcal8C2uGkNcAw/xzA26JaY+Tfgep52Zz1OMtdevinX8B2+jGadZ9Y8pAAAAAElFTkSuQmCC</File>
+  </Data>
+</Glabels-document>

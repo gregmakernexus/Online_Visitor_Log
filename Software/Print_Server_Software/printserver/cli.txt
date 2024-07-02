@@ -1,0 +1,17 @@
+help
+
+add greg
+gregvisit
+list
+modify greg
+hiding
+list
+delete greg
+list
+modify greg
+invalidcommand
+clear
+list
+reset
+list
+exit

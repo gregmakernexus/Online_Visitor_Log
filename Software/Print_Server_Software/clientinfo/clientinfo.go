@@ -76,9 +76,13 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	}
 
 	/*------------------------------------------------------
-	 *  Read the clientinfo table.
+	 *  Read the clientinfo table for the last 6 months
 	 *-----------------------------------------------------*/
-	r, err = db.Query("SELECT * FROM clientInfo")
+	n := time.Now()
+	sixMonthsAgo := n.AddDate(0,-6,0)
+	querySixMonthsAgo := sixMonthsAgo.Format("20060102")
+	log.V(1).Printf("Six months ago:%v\n",querySixMonthsAgo)
+	r, err = db.Query("SELECT * FROM clientInfo WHERE dateLastSeen>"+querySixMonthsAgo)
 	if err != nil {
 		log.V(0).Fatal(err)
 	}

@@ -83,6 +83,7 @@ var filterList = map[string]string{
 	"guest":           "Guest",
 	"tour":            "TOUR",
 	"other":           "Visitor",
+	"meetup":          "Meet-Up",
 }
 
 func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
@@ -136,6 +137,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	/*------------------------------------------------------------------
 	 * Get CUPS printers
 	 *---------------------------------------------------------*/
+	l.Printers = make(map[string]Printer) // reinitialie in case templates change
 	l.updateCUPSPrinter()
 	/*---------------------------------------------------------
 	 * write the label config to disk
@@ -195,9 +197,10 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	if len(info) == 0 {
 		return nil
 	}
-	var first, last, reason string
+	var first, last, reason, status string
 	var p Printer
 	var exist bool
+	var reasons map[string]string = make(map[string]string)
 	var model string = l.PrinterQueue[0] // get printer from printer queue
 	if p, exist = l.Printers[model]; !exist {
 		return fmt.Errorf("missing printer model:%v", model)
@@ -207,8 +210,9 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	t := time.Now()
 	nowDate := fmt.Sprintf("%v %v, %v", toMonth[t.Month()], t.Day(), t.Year())
 	temp = strings.Replace(temp, "${Date}", nowDate, -1)
-	// Find the first and last name
-
+	/*-----------------------------------------------------------------
+	 * Since the order of the keys is random, parse all the keys
+	 *---------------------------------------------------------------*/
 	for key, data := range info {
 		log.V(1).Printf("key:%v\n", key)
 		switch key {
@@ -221,10 +225,12 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 			temp = strings.Replace(temp, "${nameLast}", data.(string), -1)
 			last = data.(string)
 		case "visitReason":
-			var exist bool
-			if reason, exist = filterList[data.(string)]; !exist {
-				reason = "Visitor"
+			for _, r := range strings.Split(data.(string), "|") {
+				r = strings.Trim(r," ")
+				log.V(1).Printf("Adding Reason key:%v data:%v\n",r,filterList[r])
+				reasons[r] = filterList[r]
 			}
+			log.V(1).Printf("Reasons:%v\n", reasons)
 		default:
 			dataType := fmt.Sprintf("%T", data)
 			switch dataType {
@@ -235,25 +241,66 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 			}
 		}
 	}
-	/*-----------------------------------------------------------------
-	 * Since the order of the keys is random, we have to wait till all
-	 * the keys have been processed to see if the person is a staff
-	 *---------------------------------------------------------------*/
-	if reason == "Forgot Badge" {
-		reason = "Visitor"
-		key := strings.ToLower(last + first)
-		if c, exist := l.Clients[key]; exist {
-			reason = "Member"
-			if len(c) > 7 {
-				s := strings.ToLower(c[7])
-				if strings.Contains(s, "staff") {
-					reason = "Staff"
-				}
+	/*----------------------------------------------------------------
+	 * Determine membership status from the rfid table
+	 *--------------------------------------------------------------*/
+	status = "Visitor"
+	key := strings.ToLower(last + first)
+	if c, exist := l.Clients[key]; exist {
+		status = "Member"
+		if len(c) > 7 {
+			s := strings.ToLower(c[7])
+			if strings.Contains(s, "staff") {
+				status = "Staff"
 			}
-			log.V(1).Printf("Reason:%v\n", reason)
 		}
 	}
-	temp = strings.Replace(temp, "Visitor", reason, -1)
+	/*------------------------------------------------------------------
+	 *  Replace "Visitor" with other visitor reasons
+	 *-----------------------------------------------------------------*/
+	if status == "Visitor" {
+		if s, exist := reasons["volunteering"]; exist {
+			status = s
+		}
+		if s, exist := reasons["guest"]; exist {
+			status = s
+		}
+	}
+	/*------------------------------------------------------------------
+	 *  Handle special reasons for the visit
+	 *-----------------------------------------------------------------*/
+	reason = ""
+	if r, exist := reasons["classOrworkshop"]; exist {
+		
+		reason = appendString(reason, r)
+		log.V(2).Printf("classorworkship exists reason:%v\n",reason)
+	}
+	if r, exist := reasons["makernexusevent"]; exist {
+		
+		reason = appendString(reason, r)
+	    log.V(2).Printf("event exists reason:%v\n",reason)
+	}
+	if r, exist := reasons["camp"]; exist {
+		status = "Student"
+		reason = appendString(reason, r)
+		log.V(2).Printf("camp exists reason:%v\n",reason)
+	}
+	if r, exist := reasons["other"]; exist {
+		reason = appendString(reason, r)
+		log.V(2).Printf("other exists reason:%v\n",reason)
+	}
+	if r, exist := reasons["tour"]; exist {
+		reason = appendString(reason, r)
+		log.V(2).Printf("tour exists reason:%v\n",reason)
+	}
+	if r, exist := reasons["meetup"]; exist {
+		reason = appendString(reason, r)
+		log.V(2).Printf("meetup exists reason:%v\n",reason)
+	}
+	log.V(1).Printf("Reason:%v\n", reason)
+	temp = strings.Replace(temp, "${reason}", reason, -1)
+	log.V(1).Printf("Member Status:%v\n", status)
+	temp = strings.Replace(temp, "Visitor", status, -1)
 	/*-----------------------------------------------------------------
 	* Store the label in the queue
 	*----------------------------------------------------------------*/
@@ -279,6 +326,13 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	}
 
 	return nil
+}
+func appendString(s string, a string) string {
+	if s != "" {
+		s = s + ","
+	}
+	s = s + a
+	return s
 }
 func (l *LabelClient) ProcessLabelQueue() (err error) {
 	log := l.Log
@@ -641,18 +695,24 @@ loop:
 		 * If not exist, create a new printer
 		 * -----------------------------------------------------------*/
 		var exist bool
+		if err := os.Chdir(l.LabelDir); err != nil {
+			log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
+		}
 		if p, exist = l.Printers[model]; !exist {
 			p.PrinterManufacturer = manufacturer
 			p.PrinterModel = model
 			p.CurrentJob = ""
-			labelByte, err = os.ReadFile(p.PrinterManufacturer + ".glabels")
+			path := filepath.Join(l.LabelDir, p.PrinterManufacturer+".glabels")
+			log.V(1).Printf("Read label Path:%v\n", path)
+			labelByte, err = os.ReadFile(path)
 			if err != nil {
 				log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
 			}
 			p.LabelTemplate = string(labelByte)
+			log.V(2).Printf("tempalte:%v\n", p.LabelTemplate)
 			p.JobQueue = make([]Job, 0)
-			log.V(1).Printf("add printer [%v:%v]\n", p.PrinterManufacturer, p.PrinterModel)
 		}
+		log.V(1).Printf("labeldir:%v file:%v\n", l.LabelDir, p.PrinterManufacturer)
 		/*--------------------------------------------------------------
 		 * Update status
 		 * -----------------------------------------------------------*/
@@ -660,8 +720,8 @@ loop:
 		p.PrinterStatus = status
 		l.Printers[model] = p
 		l.PrinterQueue = append(l.PrinterQueue, model)
+		log.V(1).Printf("printer [%v:%v]\n", p.PrinterManufacturer, p.PrinterModel)
 	} // for each line in lpstat -p
-
 }
 
 // issue lpstat -W not-completed, and return results

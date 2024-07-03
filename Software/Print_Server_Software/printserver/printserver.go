@@ -22,7 +22,7 @@ import (
  * CLI parameters
  *--------------------------------------------------------------*/
 // var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v1/OVLindex.html","Database Read URL")
-var dbURL = flag.String("db", "https://rfidsandbox.makernexuswiki.com/v2/OVLvisitorbadges.php", "Database Read URL")
+var dbURL = flag.String("db", "https://rfid.makernexuswiki.com/v2/OVLvisitorbadges.php", "Database Read URL")
 var logLevel = flag.Int("V", 0, "Logging level for debug messages")
 
 /*---------------------------------------------------------------

@@ -132,6 +132,8 @@ func TestMain(t *testing.T) {
 	 *--------------------------------------------------------------*/
 	cliCommands = []string{
 		"reset",
+		"modify makernexusevent",
+		"GOFA",
 		"list",
 		"exit",
 	}

@@ -142,6 +142,9 @@ if ($previousVisitNum == -1 || $previousVisitNum == -2){
 
         $visitReason = cleanInput($visitReason); // prevent attacks
     }
+    if ($visitReason == "") {
+        $visitReason = "None given";
+    }   
 }
 
 // based on $previousVisitNum:

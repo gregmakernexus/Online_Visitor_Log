@@ -226,8 +226,8 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 			last = data.(string)
 		case "visitReason":
 			for _, r := range strings.Split(data.(string), "|") {
-				r = strings.Trim(r," ")
-				log.V(1).Printf("Adding Reason key:%v data:%v\n",r,filterList[r])
+				r = strings.Trim(r, " ")
+				log.V(1).Printf("Adding Reason key:%v data:%v\n", r, filterList[r])
 				reasons[r] = filterList[r]
 			}
 			log.V(1).Printf("Reasons:%v\n", reasons)
@@ -271,31 +271,31 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	 *-----------------------------------------------------------------*/
 	reason = ""
 	if r, exist := reasons["classOrworkshop"]; exist {
-		
+
 		reason = appendString(reason, r)
-		log.V(2).Printf("classorworkship exists reason:%v\n",reason)
+		log.V(2).Printf("classorworkship exists reason:%v\n", reason)
 	}
 	if r, exist := reasons["makernexusevent"]; exist {
-		
+
 		reason = appendString(reason, r)
-	    log.V(2).Printf("event exists reason:%v\n",reason)
+		log.V(2).Printf("event exists reason:%v\n", reason)
 	}
 	if r, exist := reasons["camp"]; exist {
 		status = "Student"
 		reason = appendString(reason, r)
-		log.V(2).Printf("camp exists reason:%v\n",reason)
+		log.V(2).Printf("camp exists reason:%v\n", reason)
 	}
 	if r, exist := reasons["other"]; exist {
 		reason = appendString(reason, r)
-		log.V(2).Printf("other exists reason:%v\n",reason)
+		log.V(2).Printf("other exists reason:%v\n", reason)
 	}
 	if r, exist := reasons["tour"]; exist {
 		reason = appendString(reason, r)
-		log.V(2).Printf("tour exists reason:%v\n",reason)
+		log.V(2).Printf("tour exists reason:%v\n", reason)
 	}
 	if r, exist := reasons["meetup"]; exist {
 		reason = appendString(reason, r)
-		log.V(2).Printf("meetup exists reason:%v\n",reason)
+		log.V(2).Printf("meetup exists reason:%v\n", reason)
 	}
 	log.V(1).Printf("Reason:%v\n", reason)
 	temp = strings.Replace(temp, "${reason}", reason, -1)
@@ -599,8 +599,8 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 }
 
 func (l *LabelClient) Print(labels []Visitor) (err error) {
-	// log := l.Log
-	// log.V(1).Printf("There are %v labels\n",len(labels))
+	log := l.Log
+	log.V(1).Printf("Print. There are %v labels\n",len(labels))
 	for _, label := range labels {
 		// take the OVL info add label to print queue
 		if err := l.AddToLabelQueue(label); err != nil {
@@ -671,7 +671,7 @@ func (l *LabelClient) updateCUPSPrinter() {
 loop:
 	for _, line := range lines {
 		model, _, status, err := l.parseLpstatP(line)
-		if err != nil || status == "disabled" || model == "" {
+		if err != nil || model == "" {
 			continue loop
 		}
 		log.V(1).Printf("model:%v status:%v\n", model, status)
@@ -691,6 +691,12 @@ loop:
 		default:
 			continue loop
 		}
+		if status == "disabled" {
+			log.V(0).Printf("Found disabled label printer.  Attempting to enable:%v\n",model)
+		    if out,err := exec.Command("lpadmin","-p",model,"-E").CombinedOutput(); err != nil {
+			   log.V(0).Printf("lpadmin -p %v -E\n%v\n",model,string(out))
+			}
+		}
 		/*--------------------------------------------------------------
 		 * If not exist, create a new printer
 		 * -----------------------------------------------------------*/
@@ -702,17 +708,17 @@ loop:
 			p.PrinterManufacturer = manufacturer
 			p.PrinterModel = model
 			p.CurrentJob = ""
-			path := filepath.Join(l.LabelDir, p.PrinterManufacturer+".glabels")
-			log.V(1).Printf("Read label Path:%v\n", path)
-			labelByte, err = os.ReadFile(path)
-			if err != nil {
-				log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
-			}
-			p.LabelTemplate = string(labelByte)
-			log.V(2).Printf("tempalte:%v\n", p.LabelTemplate)
 			p.JobQueue = make([]Job, 0)
 		}
-		log.V(1).Printf("labeldir:%v file:%v\n", l.LabelDir, p.PrinterManufacturer)
+		path := filepath.Join(l.LabelDir, p.PrinterManufacturer+".glabels")
+		log.V(1).Printf("Read label Path:%v\n", path)
+		labelByte, err = os.ReadFile(path)
+		if err != nil {
+			log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
+		}
+		p.LabelTemplate = string(labelByte)
+		log.V(2).Printf("template:%v\n", p.LabelTemplate)
+		log.V(1).Printf("labeldir:%v file:%v.glabels\n", l.LabelDir, p.PrinterManufacturer)
 		/*--------------------------------------------------------------
 		 * Update status
 		 * -----------------------------------------------------------*/
@@ -764,6 +770,22 @@ func (l *LabelClient) getJobNumber() string {
 		return ""
 	}
 	return tokens[0]
+}
+
+func (l *LabelClient) ClearPrintQueue() {
+	log := l.Log
+	var err error
+	jobs := l.GetNotCompleted()
+	for _, job := range jobs {
+		line := strings.Split(job, " ")
+		if len(line) == 0 {
+			return
+		}
+		log.V(1).Printf("Cancel print job:%v\n", line[0])
+		if _, err = exec.Command("cancel", line[0]).CombinedOutput(); err != nil {
+			log.V(1).Printf("cancel command error:%v\n", err)
+		}
+	}
 }
 
 // EXPERIMENTAL.  Polls lpstat -p till printers are not printing

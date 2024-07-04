@@ -41,6 +41,7 @@ func TestMain(t *testing.T) {
 	for key, rec := range l.Clients {
 		log.V(2).Println(key, rec)
 	}
+	l.ClearPrintQueue()
 	/*-----------------------------------------------------------
 	 * Clean out any labels already submitted, and print them
 	 *----------------------------------------------------------*/
@@ -50,7 +51,7 @@ func TestMain(t *testing.T) {
 		"exit",
 	}
 	/*---------------------------------------------------------------
-	 * Test filter code.  Print only camp
+	 * Set filter to everything
 	 *-------------------------------------------------------------*/
 	c := []byte(strings.Join(cliCommands, "\n"))
 	os.WriteFile("cli.txt", c, 0777)
@@ -58,6 +59,7 @@ func TestMain(t *testing.T) {
 		t.Error(err)
 		t.Fatal()
 	}
+	log.V(0).Printf("***** CLEARING Queue *******\n")
 	l.FilterEditor(rdr, os.Stdout, true)
 	var labels []label.Visitor
 	if labels, err = l.ReadOVL(*dbURL); err != nil {
@@ -70,6 +72,8 @@ func TestMain(t *testing.T) {
 			return
 		}
 	}
+	log.V(0).Printf("***** EMPTY Queue *******\n")
+	
 	/*----------------------------------------------------------
 	 * This script cd to test directory, activates the venv, and
 	 * runs python ovlregistister.py which executes selenium to register
@@ -116,7 +120,7 @@ func TestMain(t *testing.T) {
 	}
 	l.FilterEditor(rdr, os.Stdout, true)
 	l.ExportTestToGlabels()
-
+    log.V(0).Printf("***** PRINTING CAMP ONLY *******\n")
 	for {
 		if labels, err = l.ReadOVL(*dbURL); err != nil {
 			log.V(0).Printf("get from webserver failed. Error:%v\n", err)
@@ -127,6 +131,7 @@ func TestMain(t *testing.T) {
 		}
 		l.Print(labels)
 	}
+	log.V(0).Printf("***** PRINTING CAMP done *******\n")
 	/*----------------------------------------------------------------
 	 * Print the rest of the labels
 	 *--------------------------------------------------------------*/
@@ -144,7 +149,8 @@ func TestMain(t *testing.T) {
 		t.Fatal()
 	}
 	l.FilterEditor(rdr, os.Stdout, true)
-	l.ExportTestToGlabels()
+	l.ExportTestToGlabels()  // print filter summary
+	log.V(0).Printf("***** PRINTING All catagories *******\n")
 	for {
 		if labels, err = l.ReadOVL(*dbURL); err != nil {
 			log.V(0).Printf("get from webserver failed. Error:%v\n", err)
@@ -155,5 +161,6 @@ func TestMain(t *testing.T) {
 		}
 		l.Print(labels)
 	}
+	log.V(0).Printf("***** PRINTING All done *******\n")
 
 }

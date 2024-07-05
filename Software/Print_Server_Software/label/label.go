@@ -139,7 +139,6 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 *---------------------------------------------------------*/
 	l.Printers = make(map[string]Printer) // reinitialie in case templates change
 	l.PrinterQueue = make([]string, 0)
-	l.updateCUPSPrinter()
 	/*---------------------------------------------------------
 	 * write the label config to disk
 	 *-------------------------------------------------------*/
@@ -155,6 +154,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
 		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
 	}
+	l.updateCUPSPrinter()
 
 	// Create the http client with no security this is to access the OVL database
 	// website
@@ -207,6 +207,9 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	var p Printer
 	var exist bool
 	var reasons map[string]string = make(map[string]string)
+	if len(l.PrinterQueue) == 0 {
+		l.updateCUPSPrinter()
+	}
 	var model string = l.PrinterQueue[0] // get printer from printer queue
 	if p, exist = l.Printers[model]; !exist {
 		return fmt.Errorf("missing printer model:%v", model)
@@ -423,6 +426,9 @@ func (l *LabelClient) ExportTestToGlabels() error {
 		log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
 	}
 	template := string(labelByte)
+	if len(l.Printers) == 0 {
+		l.updateCUPSPrinter()
+	}
 	for _, p := range l.Printers {
 		var temp string = template
 		// Get the date right now and update the label
@@ -676,6 +682,7 @@ func (l *LabelClient) updateCUPSPrinter() {
 	if len(lines) == 0 {
 		log.V(0).Fatalf("No Printers Found")
 	}
+	l.PrinterQueue = make([]string, 0)
 	/*-----------------------------------------------------------------
 	 * Process output of the lpstat -p command.  Line by line.
 	 *---------------------------------------------------------------*/

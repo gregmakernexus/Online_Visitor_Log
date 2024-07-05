@@ -138,6 +138,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 * Get CUPS printers
 	 *---------------------------------------------------------*/
 	l.Printers = make(map[string]Printer) // reinitialie in case templates change
+	l.PrinterQueue = make([]string, 0)
 	l.updateCUPSPrinter()
 	/*---------------------------------------------------------
 	 * write the label config to disk
@@ -560,6 +561,7 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 		case tokens[0] == "exit", tokens[0] == "e":
 			// Update db read parameters
 			l.URLWithParms = l.URL + "?vrss="
+			l.Reasons = make([]string, 0)
 			for key := range l.FilterList {
 				l.Reasons = append(l.Reasons, key)
 				l.URLWithParms = l.URLWithParms + key + "|"
@@ -600,7 +602,7 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 
 func (l *LabelClient) Print(labels []Visitor) (err error) {
 	log := l.Log
-	log.V(1).Printf("Print. There are %v labels\n",len(labels))
+	log.V(1).Printf("Print. There are %v labels\n", len(labels))
 	for _, label := range labels {
 		// take the OVL info add label to print queue
 		if err := l.AddToLabelQueue(label); err != nil {
@@ -692,9 +694,9 @@ loop:
 			continue loop
 		}
 		if status == "disabled" {
-			log.V(0).Printf("Found disabled label printer.  Attempting to enable:%v\n",model)
-		    if out,err := exec.Command("lpadmin","-p",model,"-E").CombinedOutput(); err != nil {
-			   log.V(0).Printf("lpadmin -p %v -E\n%v\n",model,string(out))
+			log.V(0).Printf("Found disabled label printer.  Attempting to enable:%v\n", model)
+			if out, err := exec.Command("lpadmin", "-p", model, "-E").CombinedOutput(); err != nil {
+				log.V(0).Printf("lpadmin -p %v -E\n%v\n", model, string(out))
 			}
 		}
 		/*--------------------------------------------------------------

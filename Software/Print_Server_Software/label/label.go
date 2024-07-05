@@ -144,6 +144,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 * write the label config to disk
 	 *-------------------------------------------------------*/
 	var configBuf []byte
+	l.Clients = make(map[string][]string)
 	if err := os.Chdir(config); err != nil {
 		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
 		l.dirSetup(".makernexus")
@@ -572,6 +573,10 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 			}
 			l.URLWithParms = l.URLWithParms[:len(l.URLWithParms)-1]
 			log.V(1).Printf("DB Url:%v\n", l.URLWithParms)
+			// Don't store printer or client information
+			l.Clients = make(map[string][]string)
+			l.Printers = make(map[string]Printer)
+			l.PrinterQueue = make([]string, 0)
 			// Write config file to disk
 			var configBuf []byte
 			if configBuf, err = json.Marshal(l); err != nil {

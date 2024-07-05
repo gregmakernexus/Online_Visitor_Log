@@ -102,11 +102,11 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	l.LabelDir = filepath.Join(home, "Mylabels")
 	config := filepath.Join(home, ".makernexus")
 	if err := os.Chdir(config); err != nil {
-		log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
+		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
 		l.dirSetup(".makernexus")
 	}
 	if _, err = os.Stat("labelConfig.json"); err != nil {
-		log.V(0).Fatalf("Creating Configuration File")
+		log.V(0).Printf("Creating Configuration File\n")
 		l.FilterList = filterList // default is all catagories
 		l.Reasons = make([]string, 0, 20)
 
@@ -144,6 +144,10 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 * write the label config to disk
 	 *-------------------------------------------------------*/
 	var configBuf []byte
+	if err := os.Chdir(config); err != nil {
+		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
+		l.dirSetup(".makernexus")
+	}
 	if configBuf, err = json.Marshal(l); err != nil {
 		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
 	}

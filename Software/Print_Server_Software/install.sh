@@ -166,6 +166,7 @@ cp -f "$bash_path/maker_nexus_logo.png" maker_nexus_logo.png
 cp -f "$bash_path/DYMO.glabels" DYMO.glabels
 cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
 cp -f "$bash_path/printer.glabels" printer.glabels
+
 #-----------------------------------------------------
 # Install Brother printer driver.  Set the media 2.4" diameter
 # If media is not set correctly, printer will not print

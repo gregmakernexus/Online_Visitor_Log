@@ -1,24 +1,27 @@
 <?xml version="1.0"?>
 <Glabels-document version="4.0">
-  <Template width="175.691pt" height="283.465pt" size="roll" roll_width="189.921pt" description="Continuous label tape" brand="Brother" part="DK-2205">
-    <Label-continuous id="0" width="175.691pt" min_height="70.8661pt" height="283.465pt" default_height="283.465pt" max_height="70.8661pt">
-      <Markup-margin y_size="8.50394pt" x_size="4.25197pt"/>
+  <Template size="roll" height="283.465pt" brand="Brother" width="175.691pt" roll_width="189.921pt" part="DK-2205" description="Continuous label tape">
+    <Label-continuous max_height="70.8661pt" id="0" height="283.465pt" min_height="70.8661pt" width="175.691pt" default_height="283.465pt">
+      <Markup-margin x_size="4.25197pt" y_size="8.50394pt"/>
       <Layout dx="0pt" y0="0pt" dy="0pt" nx="1" x0="0pt" ny="1"/>
     </Label-continuous>
   </Template>
   <Objects id="0" rotate="true">
-    <Object-barcode w="68.424pt" x="198pt" backend="qrencode" y="86pt" h="68.424pt" a0="1" a1="0" a2="0" lock_aspect_ratio="true" data="${URL}" a3="1" checksum="true" a4="0" text="false" a5="0" style="qrcode" color="0xff"/>
-    <Object-text a0="1" align="left" a1="0" w="247.864pt" font_family="Sans" a2="0" x="43.136pt" a3="1" y="14pt" font_underline="false" a4="0" font_weight="bold" a5="0" color="0xff" shadow_opacity="0.5" shadow_color="0xff" shadow="false" valign="top" font_size="16" shadow_x="1.3pt" shadow_y="1.3pt" auto_shrink="true" h="58pt" lock_aspect_ratio="false" font_italic="false" wrap="word" line_spacing="1">
+    <Object-barcode w="74pt" x="189.424pt" y="74pt" h="74pt" style="qrcode" checksum="true" color="0xff" data="${URL}" text="false" a0="1" a1="0" lock_aspect_ratio="true" a2="0" a3="1" backend="qrencode" a4="0" a5="0"/>
+    <Object-text auto_shrink="true" wrap="word" font_size="16" font_italic="false" shadow_color="0xff" align="left" h="58pt" font_family="Sans" shadow="false" valign="top" lock_aspect_ratio="false" color="0xff" a0="1" line_spacing="1" a1="0" font_weight="bold" a2="0" a3="1" font_underline="false" a4="0" a5="0" w="247.864pt" shadow_x="1.3pt" x="43.136pt" shadow_y="1.3pt" y="14pt" shadow_opacity="0.5">
       <p>${nameFirst} ${nameLast}</p>
     </Object-text>
-    <Object-image w="34pt" x="9pt" y="10pt" h="34pt" shadow="false" a0="1" a1="0" a2="0" shadow_x="1.3pt" lock_aspect_ratio="false" src="maker_nexus_logo.png" a3="1" shadow_y="1.3pt" a4="0" a5="0" shadow_opacity="0.5" shadow_color="0xff"/>
-    <Object-text a0="1" align="left" a1="0" w="165pt" font_family="Sans" a2="0" x="6pt" a3="1" y="84pt" font_underline="false" a4="0" font_weight="bold" a5="0" color="0xff" shadow_opacity="0.5" shadow_color="0xff" shadow="false" valign="top" font_size="16" shadow_x="1.3pt" shadow_y="1.3pt" auto_shrink="false" h="31pt" lock_aspect_ratio="false" font_italic="false" wrap="word" line_spacing="1">
+    <Object-image w="34pt" src="maker_nexus_logo.png" x="9pt" shadow_color="0xff" y="10pt" h="34pt" shadow_opacity="0.5" shadow_x="1.3pt" shadow_y="1.3pt" shadow="false" a0="1" a1="0" lock_aspect_ratio="false" a2="0" a3="1" a4="0" a5="0"/>
+    <Object-text auto_shrink="true" wrap="word" font_size="16" font_italic="false" shadow_color="0xff" align="left" h="31pt" font_family="Sans" shadow="false" valign="top" lock_aspect_ratio="false" color="0xff" a0="1" line_spacing="1" a1="0" font_weight="bold" a2="0" a3="1" font_underline="false" a4="0" a5="0" w="165pt" shadow_x="1.3pt" x="8pt" shadow_y="1.3pt" y="74pt" shadow_opacity="0.5">
       <p>Visitor</p>
     </Object-text>
-    <Object-text a0="1" align="left" a1="0" w="149pt" font_family="Sans" a2="0" x="10pt" a3="1" y="108pt" font_underline="false" a4="0" font_weight="normal" a5="0" color="0xff" shadow_opacity="0.5" shadow_color="0xff" shadow="false" valign="top" font_size="12" shadow_x="1.3pt" shadow_y="1.3pt" auto_shrink="false" h="22pt" lock_aspect_ratio="false" font_italic="false" wrap="word" line_spacing="1">
+    <Object-text auto_shrink="true" wrap="word" font_size="16" font_italic="false" shadow_color="0xff" align="left" h="22pt" font_family="Sans" shadow="false" valign="top" lock_aspect_ratio="false" color="0xff" a0="1" line_spacing="1" a1="0" font_weight="normal" a2="0" a3="1" font_underline="false" a4="0" a5="0" w="99pt" shadow_x="1.3pt" x="174pt" shadow_y="1.3pt" y="148pt" shadow_opacity="0.5">
       <p>${Date}</p>
     </Object-text>
-    <Object-line x="8pt" dx="263pt" line_color="0xff" y="68pt" dy="1pt" line_width="1pt" shadow="false" a0="1" a1="0" a2="0" shadow_x="1.3pt" a3="1" shadow_y="1.3pt" a4="0" a5="0" shadow_opacity="0.5" shadow_color="0xff"/>
+    <Object-line x="8pt" shadow_color="0xff" y="68pt" shadow_opacity="0.5" dx="263pt" shadow_x="1.3pt" dy="1pt" shadow_y="1.3pt" shadow="false" line_color="0xff" a0="1" line_width="1pt" a1="0" a2="0" a3="1" a4="0" a5="0"/>
+    <Object-text auto_shrink="true" wrap="word" font_size="13" font_italic="false" shadow_color="0xff" align="left" h="31pt" font_family="Sans" shadow="false" valign="top" lock_aspect_ratio="false" color="0xff" a0="1" line_spacing="1" a1="0" font_weight="normal" a2="0" a3="1" font_underline="false" a4="0" a5="0" w="165pt" shadow_x="1.3pt" x="11pt" shadow_y="1.3pt" y="101pt" shadow_opacity="0.5">
+      <p>${reason}</p>
+    </Object-text>
   </Objects>
   <Data>
     <File name="maker_nexus_logo.png" encoding="base64" mimetype="image/png">iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAMAAAAOusbgAAAAVFBMVEUAf3z///9WqqgAgn8Zi4kAhIF0uLf1+vq43NpMpaMjkY1crat2u7llsq9/v72v19bd7u7O5+Y7nZqf0M+GwsA2mpjE4uHf7+8pk5GLxMPs9fWczswmaouQAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADyUlEQVRogcXb2VbjMAwAUAnXlAG6whQ6/P9/TtM0iRdJXiIbPcwZHDX32EnkrIC/FFD+k+3BGnDDbk7N4Wdgw7y0grc8OuMNYJNmx3FXhc+Z6hh7LdgWsUNsNODcMfYjubVTcHlvpzivgXfV7BDbangVO0QdXLYr03GsgBVYEA5rDs4oU5lRBv9RczmZbq47drkgKxkJ67oAr5mwMgvkLkbA+i5VQWO4hUv0OYK1t+8U4XYO4VYuwIcIax6/YWwluKEbVBLo5/oydHS9MyIXbrmBx2Dg5q4rQ1fXqWAL/NYDBgLu4i7y/J/689iyeAnhTu7cZejcYYB3H+7mTl2G3h0G+HThju6jy+O/f38L7uqO5esOr7ps2EgLn8f49ltnODzfyR8BHOY6afkYT37r2wTH6bnuHRayaRgecDTSuVsdHzCfLcNkep77gNlsBv4U4LSMDsxlMzBIcEpGD2ZqnwjH9ydz6jcGMF2ERJhNzzhOHBg/C+CdDCf3Vg/GSz5sEnBinwlgdm+J4VvlIetlQvYo7wK0BP5IdUlykfo7ExaPA2H4nKW8zMInYK6IDbcq8vKSlVl4x85EnOy7SLRmwcIUSMuBi1T7JkqPYSvNvYQcusuSi9P4vqrHlLw0GH/BLZ4c+WslHI624xL13L2vMxWHStgtDp5ryYnEu4tWBS+/dWW3v/QMFsvVMPk0xQQ58S/nRfUwsSPbOIeV18DMvT8G9rLtOtgfbUPmMPI0ZcawyYC9ic8wOU4QD5NzK1e40kU2bI4Tuwx4Q06L0UpN5IonhNEzzRjeAxIXXcRK7w1WzomX8vAR8JQFAwbXdjIMKVg82fPabHDGkIBBDQabkcPJq+DiHAm2AxyfdOnAzrOACD4M8EsreHmIW3a1uB6eS0l3eKp5DBxtZD34UfNC+MjefFGDR5m5B9IUvmdycDhP6MIQwZcJDn9uxtCCIYSRg7NWVgCD/2bHci/TueboEbjANV3Wgb/T6Wrx5cI9u4we3O5JeRgXH+7XZQxgjXeZcmIbwr26jBHcR0YC7rF/nSm4R5eRhIlT+2au/1ZE6yeMVw5uPNj+LRLsJ6MAt5RRhPed3Ph9rtdG7r8U3GjXPoRMDDepYD+RQsAN5Ki/NKy+ncPty8L4o+qSBN2q+M4v4/KvOWux3Mv0LEzd/6qIK7d6HlbptLByAV4tSx8OiPBKWl6zDFPPhDND/FghDddeSSa/gErDNTT/lUIRjGXlO++jp0yYfp5RNcal8C2uGkNcAw/xzA26JaY+Tfgep52Zz1OMtdevinX8B2+jGadZ9Y8pAAAAAElFTkSuQmCC</File>

@@ -28,14 +28,8 @@ var logLevel = flag.Int("V", 0, "Logging level for debug messages")
 /*---------------------------------------------------------------
  * global variables
  *-------------------------------------------------------------*/
-// var clients map[string][]string
 var log *debug.DebugClient
 var l *label.LabelClient
-
-// var err error
-// var rdr *os.File = os.Stdin
-// var alarmCount int
-// var alarmSeconds int
 var firstLine string
 
 func main() {

@@ -102,11 +102,11 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	l.LabelDir = filepath.Join(home, "Mylabels")
 	config := filepath.Join(home, ".makernexus")
 	if err := os.Chdir(config); err != nil {
-		log.V(0).Printf("Label directory does not exist. path:%v\n", l.LabelDir)
+		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
 		l.dirSetup(".makernexus")
 	}
 	if _, err = os.Stat("labelConfig.json"); err != nil {
-		log.V(0).Fatalf("Creating Configuration File")
+		log.V(0).Printf("Creating Configuration File\n")
 		l.FilterList = filterList // default is all catagories
 		l.Reasons = make([]string, 0, 20)
 
@@ -138,17 +138,23 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 * Get CUPS printers
 	 *---------------------------------------------------------*/
 	l.Printers = make(map[string]Printer) // reinitialie in case templates change
-	l.updateCUPSPrinter()
+	l.PrinterQueue = make([]string, 0)
 	/*---------------------------------------------------------
 	 * write the label config to disk
 	 *-------------------------------------------------------*/
 	var configBuf []byte
+	l.Clients = make(map[string][]string)
+	if err := os.Chdir(config); err != nil {
+		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
+		l.dirSetup(".makernexus")
+	}
 	if configBuf, err = json.Marshal(l); err != nil {
 		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
 	}
 	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
 		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
 	}
+	l.updateCUPSPrinter()
 
 	// Create the http client with no security this is to access the OVL database
 	// website
@@ -201,6 +207,9 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	var p Printer
 	var exist bool
 	var reasons map[string]string = make(map[string]string)
+	if len(l.PrinterQueue) == 0 {
+		l.updateCUPSPrinter()
+	}
 	var model string = l.PrinterQueue[0] // get printer from printer queue
 	if p, exist = l.Printers[model]; !exist {
 		return fmt.Errorf("missing printer model:%v", model)
@@ -417,6 +426,9 @@ func (l *LabelClient) ExportTestToGlabels() error {
 		log.Fatalf("The label template is missing.  Please create template the program glabels_qt. \nError:%v", err)
 	}
 	template := string(labelByte)
+	if len(l.Printers) == 0 {
+		l.updateCUPSPrinter()
+	}
 	for _, p := range l.Printers {
 		var temp string = template
 		// Get the date right now and update the label
@@ -560,12 +572,17 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 		case tokens[0] == "exit", tokens[0] == "e":
 			// Update db read parameters
 			l.URLWithParms = l.URL + "?vrss="
+			l.Reasons = make([]string, 0)
 			for key := range l.FilterList {
 				l.Reasons = append(l.Reasons, key)
 				l.URLWithParms = l.URLWithParms + key + "|"
 			}
 			l.URLWithParms = l.URLWithParms[:len(l.URLWithParms)-1]
 			log.V(1).Printf("DB Url:%v\n", l.URLWithParms)
+			// Don't store printer or client information
+			l.Clients = make(map[string][]string)
+			l.Printers = make(map[string]Printer)
+			l.PrinterQueue = make([]string, 0)
 			// Write config file to disk
 			var configBuf []byte
 			if configBuf, err = json.Marshal(l); err != nil {
@@ -600,7 +617,7 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 
 func (l *LabelClient) Print(labels []Visitor) (err error) {
 	log := l.Log
-	log.V(1).Printf("Print. There are %v labels\n",len(labels))
+	log.V(1).Printf("Print. There are %v labels\n", len(labels))
 	for _, label := range labels {
 		// take the OVL info add label to print queue
 		if err := l.AddToLabelQueue(label); err != nil {
@@ -665,6 +682,7 @@ func (l *LabelClient) updateCUPSPrinter() {
 	if len(lines) == 0 {
 		log.V(0).Fatalf("No Printers Found")
 	}
+	l.PrinterQueue = make([]string, 0)
 	/*-----------------------------------------------------------------
 	 * Process output of the lpstat -p command.  Line by line.
 	 *---------------------------------------------------------------*/
@@ -692,9 +710,9 @@ loop:
 			continue loop
 		}
 		if status == "disabled" {
-			log.V(0).Printf("Found disabled label printer.  Attempting to enable:%v\n",model)
-		    if out,err := exec.Command("lpadmin","-p",model,"-E").CombinedOutput(); err != nil {
-			   log.V(0).Printf("lpadmin -p %v -E\n%v\n",model,string(out))
+			log.V(0).Printf("Found disabled label printer.  Attempting to enable:%v\n", model)
+			if out, err := exec.Command("lpadmin", "-p", model, "-E").CombinedOutput(); err != nil {
+				log.V(0).Printf("lpadmin -p %v -E\n%v\n", model, string(out))
 			}
 		}
 		/*--------------------------------------------------------------

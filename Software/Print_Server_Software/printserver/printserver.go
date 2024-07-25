@@ -95,6 +95,7 @@ func waitForPrinterToAppear() (err error) {
 	for l.BrotherCount+l.DymoCount == 0 {
 		if alarmCount >= 5 {
 			l.TestLabel = false
+			l.WriteConfig()
 			log.Fatalf("Alarm Count Exceeded number:%v\n", alarmCount)
 		}
 		if alarmCount == 0 || alarmSeconds > 30 {

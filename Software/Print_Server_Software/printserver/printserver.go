@@ -54,11 +54,12 @@ func main() {
 	log.V(0).Println("Print Server v2.00.00  Initialized.  Hit control-c to exit.")
 	play("Windows_XP_Startup.mp3")
 	// Print Test Page
-	l.ExportTestToGlabels()
+	if l.TestLabel {
+		l.ExportTestToGlabels()
+	}
 	waitForPrinterOK()
 
 	var labels []label.Visitor
-
 	for i := 1; ; i++ {
 		/*--------------------------------------------------------------
 		 *  http get to read the the new ovl entries to print
@@ -90,8 +91,10 @@ func waitForPrinterToAppear() (err error) {
 	alarmCount := 0
 	alarmSeconds := 0
 	l.CountUSBPrinters()
+	l.TestLabel = true
 	for l.BrotherCount+l.DymoCount == 0 {
 		if alarmCount >= 5 {
+			l.TestLabel = false
 			log.Fatalf("Alarm Count Exceeded number:%v\n", alarmCount)
 		}
 		if alarmCount == 0 || alarmSeconds > 30 {

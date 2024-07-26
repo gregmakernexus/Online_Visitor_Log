@@ -84,7 +84,7 @@ else
   echo ".bin was added to your path."
 fi
 #-------------------------------------------------------
-#  Compile printserver.go and copy to .bin
+#  Compile printserver.go
 #-------------------------------------------------------
 cd "$bash_path"/printserver
 if [ ! -f "printserver.go" ]; then
@@ -154,6 +154,9 @@ if [[ $(ls) = *printconfig* ]]; then
 else
   exit 101
 fi
+echo "Resetting label configuration filters in $HOME/.makernexus/labelConfig.json"
+cd "$HOME/.makernexus"
+rm labelConfig.json
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory
 #------------------------------------------------------

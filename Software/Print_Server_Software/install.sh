@@ -84,11 +84,11 @@ else
   echo ".bin was added to your path."
 fi
 #----------------------------------------------------
-# Create the application .bin directory to hold applications
+# Copy mp3 files to the music directory
 #---------------------------------------------------
 cd "$HOME/Music"
 cp -f "$bash_path/start_me_up.mp3" start_me_up.mp3
-cp -f "$bash_path/Quartz_Alarm_Clock_Beep.mp3" Quartz_Alarm_Clock_Beep.mp3
+cp -f "$bash_path/Quartz_Alarm_Clock_Beeps.mp3" Quartz_Alarm_Clock_Beeps.mp3
 #-------------------------------------------------------
 #  Compile printserver.go
 #-------------------------------------------------------

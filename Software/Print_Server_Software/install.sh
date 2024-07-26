@@ -27,11 +27,11 @@ else
   set -e 
   cd "$HOME/Downloads"
   if [ "$ARCH" == aarch64 ] || [ "$ARCH" == arm64* ]; then
-    wget "https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz"
-    sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
+    wget "https://dl.google.com/go/go1.22.5.linux-arm64.tar.gz"
+    sudo tar -C /usr/local -xzf go1.22.5.linux-arm64.tar.gz
   elif  [[ "$ARCH" == armv* ]]; then
-    wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
-    sudo tar -C /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
+    wget https://dl.google.com/go/go1.22.5.linux-armv6l.tar.gz
+    sudo tar -C /usr/local -xzf go1.22.5.linux-armv6l.tar.gz
   else
     echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
     exit 3
@@ -119,7 +119,7 @@ cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
 cd "$HOME/.bin"
 mv -f "$bash_path/printserver/printserver" printserver
 cp -f "$bash_path/ovlregister.sh" ovlregister.sh
-cp -f "$bash_path/printserver.sh" printserver.sh
+cp -f "$bash_path/printserver/printserver.sh" printserver.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
 else

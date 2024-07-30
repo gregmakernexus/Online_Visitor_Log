@@ -27,11 +27,11 @@ else
   set -e 
   cd "$HOME/Downloads"
   if [ "$ARCH" == aarch64 ] || [ "$ARCH" == arm64* ]; then
-    wget "https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz"
-    sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
+    wget "https://dl.google.com/go/go1.22.5.linux-arm64.tar.gz"
+    sudo tar -C /usr/local -xzf go1.22.5.linux-arm64.tar.gz
   elif  [[ "$ARCH" == armv* ]]; then
-    wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
-    sudo tar -C /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
+    wget https://dl.google.com/go/go1.22.5.linux-armv6l.tar.gz
+    sudo tar -C /usr/local -xzf go1.22.5.linux-armv6l.tar.gz
   else
     echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
     exit 3
@@ -83,8 +83,14 @@ else
   source ~/.bashrc
   echo ".bin was added to your path."
 fi
+#----------------------------------------------------
+# Copy mp3 files to the music directory
+#---------------------------------------------------
+cd "$HOME/Music"
+cp -f "$bash_path/start_me_up.mp3" start_me_up.mp3
+cp -f "$bash_path/Quartz_Alarm_Clock_Beeps.mp3" Quartz_Alarm_Clock_Beeps.mp3
 #-------------------------------------------------------
-#  Compile printserver.go and copy to .bin
+#  Compile printserver.go
 #-------------------------------------------------------
 cd "$bash_path"/printserver
 if [ ! -f "printserver.go" ]; then
@@ -119,7 +125,7 @@ cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
 cd "$HOME/.bin"
 mv -f "$bash_path/printserver/printserver" printserver
 cp -f "$bash_path/ovlregister.sh" ovlregister.sh
-cp -f "$bash_path/printserver.sh" printserver.sh
+cp -f "$bash_path/printserver/printserver.sh" printserver.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
 else
@@ -154,6 +160,9 @@ if [[ $(ls) = *printconfig* ]]; then
 else
   exit 101
 fi
+echo "Resetting label configuration filters in $HOME/.makernexus/labelConfig.json"
+cd "$HOME/.makernexus"
+rm labelConfig.json
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory
 #------------------------------------------------------

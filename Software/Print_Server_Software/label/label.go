@@ -72,6 +72,7 @@ type LabelClient struct {
 	URLWithParms string             `json:"urlwithparms"`
 	Reasons      []string           `json:"reasons"`
 	FilterList   map[string]string  `json:"filters"`
+	TestLabel    bool               `json:"notestlabel"`
 }
 
 var filterList = map[string]string{
@@ -134,27 +135,13 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 * Count the number of label printers attached to USB (lsusb)
 	 *----------------------------------------------------------------*/
 	l.CountUSBPrinters()
-	/*------------------------------------------------------------------
-	 * Get CUPS printers
-	 *---------------------------------------------------------*/
 	l.Printers = make(map[string]Printer) // reinitialie in case templates change
 	l.PrinterQueue = make([]string, 0)
-	/*---------------------------------------------------------
-	 * write the label config to disk
-	 *-------------------------------------------------------*/
-	var configBuf []byte
-	l.Clients = make(map[string][]string)
-	if err := os.Chdir(config); err != nil {
-		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
-		l.dirSetup(".makernexus")
-	}
-	if configBuf, err = json.Marshal(l); err != nil {
-		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
-	}
-	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
-		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
-	}
-	l.updateCUPSPrinter()
+	/*------------------------------------------------------------------
+	 * Write config struct to disk
+	 *---------------------------------------------------------*/
+	l.TestLabel = true
+	l.WriteConfig()
 
 	// Create the http client with no security this is to access the OVL database
 	// website
@@ -169,6 +156,33 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	return l
 }
 
+/*---------------------------------------------------------
+ * write the label config to disk
+ *-------------------------------------------------------*/
+func (l *LabelClient) WriteConfig() {
+	var configBuf []byte
+	var err error
+	log := l.Log
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("Error getting user home directory:%v\n", err)
+	}
+	config := filepath.Join(home, ".makernexus")
+	/*----------------------------------------------------------------
+	 * Read the config file.  If not there, build default.
+	 *---------------------------------------------------------------*/
+	if err := os.Chdir(config); err != nil {
+		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
+		l.dirSetup(".makernexus")
+	}
+	if configBuf, err = json.Marshal(l); err != nil {
+		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)
+	}
+	if err := os.WriteFile("labelConfig.json", configBuf, 0777); err != nil {
+		log.V(0).Fatalf("Error writing labelConfig.json err:%v", err)
+	}
+	l.updateCUPSPrinter()
+}
 func (l *LabelClient) ReadOVL(url string) ([]Visitor, error) {
 	// Do the http.get
 	log := l.Log

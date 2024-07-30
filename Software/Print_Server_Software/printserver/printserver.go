@@ -52,13 +52,14 @@ func main() {
 
 	// Print program banners
 	log.V(0).Println("Print Server v2.00.00  Initialized.  Hit control-c to exit.")
-	play("Windows_XP_Startup.mp3")
+	play("start_me_up.mp3")
 	// Print Test Page
-	l.ExportTestToGlabels()
+	if l.TestLabel {
+		l.ExportTestToGlabels()
+	}
 	waitForPrinterOK()
 
 	var labels []label.Visitor
-
 	for i := 1; ; i++ {
 		/*--------------------------------------------------------------
 		 *  http get to read the the new ovl entries to print
@@ -90,13 +91,16 @@ func waitForPrinterToAppear() (err error) {
 	alarmCount := 0
 	alarmSeconds := 0
 	l.CountUSBPrinters()
+	l.TestLabel = true
 	for l.BrotherCount+l.DymoCount == 0 {
 		if alarmCount >= 5 {
+			l.TestLabel = false
+			l.WriteConfig()
 			log.Fatalf("Alarm Count Exceeded number:%v\n", alarmCount)
 		}
 		if alarmCount == 0 || alarmSeconds > 30 {
 			log.V(0).Printf("No Label Printers Detected\n")
-			play("sound-effect-doorbell-rings-double-200533.mp3")
+			play("Quartz_Alarm_Clock_Beeps.mp3")
 			alarmSeconds = 0
 			alarmCount++
 		}
@@ -137,13 +141,13 @@ loop:
 			case alarmCount == 0 && alarmSeconds > 10:
 				log.V(0).Printf("Printer Job Stuck.  Check printer paper. jobs:%v\nlength:%v,%v\n",
 					len(lines), len(lines[0]), lines[0])
-				play("sound-effect-doorbell-rings-double-200533.mp3")
+				play("Quartz_Alarm_Clock_Beeps.mp3")
 				alarmCount++
 				continue loop
 			case alarmCount > 0 && alarmSeconds > 120:
 				log.V(0).Printf("Printer Job Stuck.  Check printer paper. jobs:%v\nlength:%v,%v\n",
 					len(lines), len(lines[0]), lines[0])
-				play("sound-effect-doorbell-rings-double-200533.mp3")
+				play("Quartz_Alarm_Clock_Beeps.mp3")
 				time.Sleep(time.Duration(10) * time.Second)
 				alarmSeconds = 0
 				alarmCount++

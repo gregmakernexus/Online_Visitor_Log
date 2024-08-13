@@ -18,6 +18,7 @@ import (
 
 	// "net/http/httputil"
 
+	client "example.com/clientinfo"
 	"example.com/debug"
 )
 
@@ -62,7 +63,6 @@ type Printer struct {
 type LabelClient struct {
 	Log          *debug.DebugClient
 	connection   *http.Client
-	Clients      map[string][]string
 	BrotherCount int
 	DymoCount    int
 	LabelDir     string             `json:"labeldir"`
@@ -74,6 +74,8 @@ type LabelClient struct {
 	FilterList   map[string]string  `json:"filters"`
 	TestLabel    bool               `json:"notestlabel"`
 }
+
+var clients map[string][]string
 
 var filterList = map[string]string{
 	"classOrworkshop": "Class",
@@ -119,6 +121,7 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 		if err = json.Unmarshal(byteJson, l); err != nil {
 			log.V(0).Fatalf("Error unmarshall labelConfig.json")
 		}
+		log.V(1).Printf("Filter List:%v\n", l.FilterList)
 	}
 	/*----------------------------------------------------------------
 	 * Build the URL so the php server will read parms
@@ -142,6 +145,16 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 *---------------------------------------------------------*/
 	l.TestLabel = true
 	l.WriteConfig()
+
+	// load the clientinfo table into map for lookup
+	clients, err = client.NewClientInfo(log)
+	if err != nil {
+		log.V(0).Fatal(err)
+	}
+	log.V(2).Println("client map:")
+	for key, rec := range clients {
+		log.V(2).Println(key, rec)
+	}
 
 	// Create the http client with no security this is to access the OVL database
 	// website
@@ -223,6 +236,9 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	var reasons map[string]string = make(map[string]string)
 	if len(l.PrinterQueue) == 0 {
 		l.updateCUPSPrinter()
+		if len(l.PrinterQueue) == 0 {
+			return fmt.Errorf("no printers attached")
+		}
 	}
 	var model string = l.PrinterQueue[0] // get printer from printer queue
 	if p, exist = l.Printers[model]; !exist {
@@ -269,7 +285,7 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 	 *--------------------------------------------------------------*/
 	status = "Visitor"
 	key := strings.ToLower(last + first)
-	if c, exist := l.Clients[key]; exist {
+	if c, exist := clients[key]; exist {
 		status = "Member"
 		if len(c) > 7 {
 			s := strings.ToLower(c[7])
@@ -594,7 +610,6 @@ func (l *LabelClient) FilterEditor(input *os.File, output *os.File, echo bool) (
 			l.URLWithParms = l.URLWithParms[:len(l.URLWithParms)-1]
 			log.V(1).Printf("DB Url:%v\n", l.URLWithParms)
 			// Don't store printer or client information
-			l.Clients = make(map[string][]string)
 			l.Printers = make(map[string]Printer)
 			l.PrinterQueue = make([]string, 0)
 			// Write config file to disk

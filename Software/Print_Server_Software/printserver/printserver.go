@@ -11,7 +11,6 @@ import (
 	"io"
 	"path/filepath"
 
-	client "example.com/clientinfo"
 	"example.com/debug"
 	label "example.com/label"
 	"github.com/hajimehoshi/go-mp3"
@@ -39,16 +38,6 @@ func main() {
 
 	log = debug.NewLogClient(*logLevel)
 	l = label.NewLabelClient(log, *dbURL)
-
-	// load the clientinfo table into map for lookup
-	l.Clients, err = client.NewClientInfo(log)
-	if err != nil {
-		log.V(0).Fatal(err)
-	}
-	log.V(3).Println("client map:")
-	for key, rec := range l.Clients {
-		log.V(3).Println(key, rec)
-	}
 
 	// Print program banners
 	log.V(0).Println("Print Server v2.00.00  Initialized.  Hit control-c to exit.")

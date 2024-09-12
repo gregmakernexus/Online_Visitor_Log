@@ -32,7 +32,6 @@ var log *debug.DebugClient
 var data [][]string
 
 func main() {
-	fmt.Println("Visitor Log Application V1.0")
 	ctx := context.Background()
 	flag.Parse()
 	var err error
@@ -62,7 +61,7 @@ func main() {
 	spreadsheetId := "1BxshsBqR32QoP_pxCRvvPKSpatoZLlX4i9ymnYqpCAY"
 	c.SpreadSheetTitle = "Daily Log"
 	c.SheetName = "Today"
-	log.V(0).Printf("Updating SpreadSheet:%v id:%v\n", c.SpreadSheetTitle, spreadsheetId)
+	log.V(1).Printf("Updating SpreadSheet:%v id:%v\n", c.SpreadSheetTitle, spreadsheetId)
 	/*-------------------------------------------------------------------------------------------
 	 * Create the client structure for use below
 	 *------------------------------------------------------------------------------------------*/
@@ -109,7 +108,7 @@ func main() {
 	// @tcp(localhost:5555)/dbname?tls=skip-verify&autocommit=true
 	dataSource := fmt.Sprintf("%v:%v@tcp(%v)/%v?tls=skip-verify",
 		c.Userid, c.Pass, c.URL, c.DBName)
-	log.V(0).Printf("db:%v\n", dataSource)
+	log.V(1).Printf("db:%v\n", dataSource)
 	db, err := sql.Open("mysql", dataSource)
 	if err != nil {
 		log.V(0).Fatal(err)
@@ -117,7 +116,7 @@ func main() {
 	/*---------------------------------------------------------------
 	 * Get list of tables in the database.  (not necessary for this app)
 	 *--------------------------------------------------------------*/
-	log.V(0).Printf("db open complete%v\n", db)
+	log.V(1).Printf("db open complete%v\n", db)
 	r, err := db.Query("SHOW TABLES")
 	if err != nil {
 		log.V(0).Fatal(err)
@@ -125,7 +124,7 @@ func main() {
 	var table string
 	for r.Next() {
 		r.Scan(&table)
-		fmt.Println(table)
+		log.V(1).Printf("db table list:\n%v\n", table)
 	}
 	/*------------------------------------------------------
 	 *  Read the ovl_visits table.  Filter on today
@@ -147,7 +146,7 @@ func main() {
 	*---------------------------------------------------------*/
 	data = make([][]string, 0)
 	data = append(data, cols)
-	fmt.Println(cols)
+	log.V(1).Printf("db column list:\n%v\n", cols)
 	// Result is your slice string.
 	rawResult := make([][]byte, len(cols))
 	dest := make([]interface{}, len(cols)) // A temporary interface{} slice
@@ -171,8 +170,11 @@ func main() {
 		}
 		data = append(data, result)
 	}
-	log.V(2).Println("resulting 2d slice:")
-	log.V(2).Println(data)
+
+	log.V(0).Printf("Today's Visitors:%v\n", len(data))
+	for _, line := range data {
+		log.V(2).Println(line)
+	}
 	/*---------------------------------------------------------------
 	* Write the slice to the google sheet named "temp_456123_"
 	*--------------------------------------------------------------*/
@@ -198,7 +200,7 @@ func main() {
 	case strings.Contains(err.Error(), "multiple"):
 		log.V(0).Fatalf("Multipe sheets include the temp name:%v.  Delete one.\n", tempName)
 	}
-	log.V(0).Printf("Re-naming temp sheet.  name:%v id:%v\n", actualSheetName, tempID)
+	log.V(1).Printf("Re-naming temp sheet.  name:%v id:%v\n", actualSheetName, tempID)
 	if err = s.RenameSheet(ctx, spreadsheetId, actualSheetName, tempID); err != nil {
 		log.V(0).Fatalf("Error creating requested sheet. error:\n%v\n", err)
 	}

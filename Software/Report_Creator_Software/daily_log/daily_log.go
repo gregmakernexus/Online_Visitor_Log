@@ -171,7 +171,7 @@ func main() {
 		data = append(data, result)
 	}
 
-	log.V(0).Printf("Today's Visitors:%v\n", len(data))
+	log.V(0).Printf("Today's Visitors:%v\n", len(data)-1)
 	for _, line := range data {
 		log.V(2).Println(line)
 	}

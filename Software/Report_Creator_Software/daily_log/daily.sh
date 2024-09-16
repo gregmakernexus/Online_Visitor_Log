@@ -7,9 +7,8 @@ function run_daily_report {
 
 while true; do
   hour=`date "+%H"`
-  echo hour:$hour
+  hour=$(echo "$hour" | sed 's/^0*//')
   if [[ $hour -ge "1" && $hour -le "8" ]]; then
-    echo 'the hour is' $hour
     sleep 60m
   else
     run_daily_report

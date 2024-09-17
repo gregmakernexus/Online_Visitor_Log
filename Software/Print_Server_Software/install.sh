@@ -201,8 +201,8 @@ if [[ $(ls) = *printconfig* ]]; then
 else
   exit 101
 fi
-echo "Resetting label configuration filters in $HOME/.makernexus/labelConfig.json"
-cd "$HOME/.makernexus"
+echo "Resetting label configuration filters in $HOME/.makerNexus/labelConfig.json"
+cd "$HOME/.makerNexus"
 rm labelConfig.json
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory

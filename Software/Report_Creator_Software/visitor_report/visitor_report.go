@@ -282,7 +282,7 @@ func (c *visitor_config) dirSetup() error {
 	 *----------------------------------------------------------------*/
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := os.Mkdir(".makerNexus", 0777); err != nil {
-			return fmt.Errorf("error creating directory .makernexus")
+			return fmt.Errorf("error creating directory .makerNexus")
 		}
 	}
 	return nil

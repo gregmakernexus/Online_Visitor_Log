@@ -22,13 +22,16 @@ waiver_report
 while true; do
   hour=`date "+%H"`
   hour=$(echo "$hour" | sed 's/^0*//')  # get rid of leading zeroes
-  if [ $hour -eq "2" ]; then
+  # if the hour is 0 then removing leading zeroes creates a null
+  if [[ ! -z "$hour" && "$hour" -eq "2" ]]; then
     echo 'running programs at:' $hour
-    ./visitor_report
+    visitor_report
     run_waiverdump
-    ./waiver_report
+    waiver_report
+    sleep 60m
+    continue
   fi
-  if [[ $hour -ge "1" && $hour -le "8" ]]; then
+  if [[ ! -z "$hour" && "$hour" -ge "1" && "$hour" -le "8" ]]; then
     echo 'Makernexus is closed.  hour:' $hour
     sleep 60m
     continue

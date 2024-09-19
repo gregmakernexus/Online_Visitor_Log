@@ -103,10 +103,10 @@ func NewLabelClient(log *debug.DebugClient, dbURL string) *LabelClient {
 	 * Read the config file.  If not there, build default.
 	 *---------------------------------------------------------------*/
 	l.LabelDir = filepath.Join(home, "Mylabels")
-	config := filepath.Join(home, ".makernexus")
+	config := filepath.Join(home, ".makerNexus")
 	if err := os.Chdir(config); err != nil {
-		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
-		l.dirSetup(".makernexus")
+		log.V(0).Printf(".makerNexus directory does not exist. path:%v\n", config)
+		l.dirSetup(".makerNexus")
 	}
 	if _, err = os.Stat("labelConfig.json"); err != nil {
 		log.V(0).Printf("Creating Configuration File\n")
@@ -180,13 +180,13 @@ func (l *LabelClient) WriteConfig() {
 	if err != nil {
 		log.Fatalf("Error getting user home directory:%v\n", err)
 	}
-	config := filepath.Join(home, ".makernexus")
+	config := filepath.Join(home, ".makerNexus")
 	/*----------------------------------------------------------------
 	 * Read the config file.  If not there, build default.
 	 *---------------------------------------------------------------*/
 	if err := os.Chdir(config); err != nil {
-		log.V(0).Printf(".makernexus directory does not exist. path:%v\n", config)
-		l.dirSetup(".makernexus")
+		log.V(0).Printf(".makerNexus directory does not exist. path:%v\n", config)
+		l.dirSetup(".makerNexus")
 	}
 	if configBuf, err = json.Marshal(l); err != nil {
 		log.V(0).Fatalf("Error marshal labelConfig.json err:%v", err)

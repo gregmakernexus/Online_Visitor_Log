@@ -87,6 +87,9 @@ fi
 # Copy mp3 files to the music directory
 #---------------------------------------------------
 cd "$HOME/Music"
+sudo apt-get update
+sudo apt-get install libasound2-dev
+sudo apt-get install libudev-dev
 cp -f "$bash_path/start_me_up.mp3" start_me_up.mp3
 cp -f "$bash_path/Quartz_Alarm_Clock_Beeps.mp3" Quartz_Alarm_Clock_Beeps.mp3
 #-------------------------------------------------------
@@ -97,11 +100,38 @@ if [ ! -f "printserver.go" ]; then
    echo "printserver.go is not in the directory with install script"
    exit 100
 fi
-sudo apt-get update
-sudo apt-get install libasound2-dev
-sudo apt-get install libudev-dev
 echo "building printserver.go"
 go build printserver.go
+#-------------------------------------------------------
+#  Compile daily_log.go
+#-------------------------------------------------------
+cd "$bash_path"/../Report_Creator_Software/daily_log
+if [ ! -f "daily_log.go" ]; then
+   echo "daily_log.go is not in the Report_Creator_Software directory"
+   exit 101
+fi
+echo "building daily_log.go"
+go build daily_log.go
+#-------------------------------------------------------
+#  Compile visitor_report.go
+#-------------------------------------------------------
+cd "$bash_path"/../Report_Creator_Software/visitor_report
+if [ ! -f "visitor_report.go" ]; then
+   echo "visitor_reportgo is not in the Report_Creator_Software directory"
+   exit 102
+fi
+echo "building visitor_report.go"
+go build visitor_report.go
+#-------------------------------------------------------
+#  Compile waiver_report.go
+#-------------------------------------------------------
+cd "$bash_path"/../Report_Creator_Software/waiver_report
+if [ ! -f "waiver_report.go" ]; then
+   echo "waiver_report.go is not in the Report_Creator_Software directory"
+   exit 103
+fi
+echo "building waiver_report.go"
+go build waiver_report.go
 #------------------------------------------------------
 # install test software including selenium, and a load
 # of python dependencies
@@ -119,29 +149,40 @@ if [ ! -d "$HOME/test" ]; then
 fi
 cd ~/test
 cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
+cp -f "$bash_path/../Report_Creator_Software/waiver_report/waiverdump.py" waiverdump.py
 #---------------------------------------------------
 # copy files to .bin directory
 #----------------------------------------------------
 cd "$HOME/.bin"
 mv -f "$bash_path/printserver/printserver" printserver
+mv -f "$bash_path/../Report_Creator_Software/daily_log/daily_log" daily_log
+mv -f "$bash_path/../Report_Creator_Software/visitor_report/visitor_report" visitor_report
+mv -f "$bash_path/../Report_Creator_Software/waiver_report/waiver_report" waiver_report
+cp -f "$bash_path/../Report_Creator_Software/report_creator.sh" report_creator.sh
 cp -f "$bash_path/ovlregister.sh" ovlregister.sh
 cp -f "$bash_path/printserver/printserver.sh" printserver.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
 else
-  exit 102
+  exit 202
 fi
 if [[ $(ls) = *ovlregister.sh* ]]; then
   chmod +x ovlregister.sh
   echo "ovlregister.sh is installed"
 else
-  exit 103
+  exit 203
 fi
 if [[ $(ls) = *printserver.sh* ]]; then
   chmod +x printserver.sh
   echo "printserver.sh is installed"
 else
-  exit 104
+  exit 204
+fi
+if [[ $(ls) = *report_creator.sh* ]]; then
+  chmod +x report_creator.sh
+  echo "report_creator.sh is installed"
+else
+  exit 204
 fi
 #-------------------------------------------------------
 #  Compile printconfig.go and copy to .bin
@@ -160,8 +201,8 @@ if [[ $(ls) = *printconfig* ]]; then
 else
   exit 101
 fi
-echo "Resetting label configuration filters in $HOME/.makernexus/labelConfig.json"
-cd "$HOME/.makernexus"
+echo "Resetting label configuration filters in $HOME/.makerNexus/labelConfig.json"
+cd "$HOME/.makerNexus"
 rm labelConfig.json
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory

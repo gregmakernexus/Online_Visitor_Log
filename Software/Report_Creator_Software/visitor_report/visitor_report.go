@@ -55,27 +55,13 @@ func main() {
 		o.GetTokenFromWeb(ctx)
 	}
 	client := o.Oauth2Config.Client(ctx, o.Tok)
+
 	/*---------------------------------------------------------------------------------------
-	 * Use the sheet name to obtain the spreadsheet id.
+	 * We are using a hardcoded sheet ID because it has been moved to the MakerNexus Shared Drive
 	 *--------------------------------------------------------------------------------------*/
-	d, err := sheet.NewDriveClient(ctx, log, client)
-	if err != nil {
-		log.V(0).Fatal("err getting drive client")
-	}
-	sheetList, err := d.ListDir(ctx, mimetypeLookup[*mimeType], c.SpreadSheetTitle)
-	if err != nil {
-		log.V(0).Fatal(err)
-	}
-	switch {
-	case len(sheetList) == 0:
-		log.V(0).Fatalf("No sheets found.\n")
-	case len(sheetList) > 1:
-		log.V(0).Fatalf("Please specify a tighter sheet name match.  More than one found.\nfiles:%v\n",
-			sheetList)
-	}
-	spreadsheetId := sheetList[0].Id
-	c.SpreadSheetTitle = sheetList[0].Name
-	log.V(0).Printf("Aquired SpreadSheet:%v id:%v\n", c.SpreadSheetTitle, spreadsheetId)
+	spreadsheetId := "1sNn-hr3TbRXsZW6ACQqJyGO8woKxMVtmyNOlNUCtDAQ"
+	c.SpreadSheetTitle = "Visitor Log"
+	log.V(0).Printf("Updating SpreadSheet:%v id:%v\n", c.SpreadSheetTitle, spreadsheetId)
 	/*-------------------------------------------------------------------------------------------
 	 * Create the client structure for use below
 	 *------------------------------------------------------------------------------------------*/
@@ -296,7 +282,7 @@ func (c *visitor_config) dirSetup() error {
 	 *----------------------------------------------------------------*/
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := os.Mkdir(".makerNexus", 0777); err != nil {
-			return fmt.Errorf("error creating directory .makernexus")
+			return fmt.Errorf("error creating directory .makerNexus")
 		}
 	}
 	return nil

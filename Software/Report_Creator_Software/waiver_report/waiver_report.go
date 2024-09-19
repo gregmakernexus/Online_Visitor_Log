@@ -121,7 +121,7 @@ func main() {
 	 * Read the csv into a slice
 	 *--------------------------------------------------------------*/
 	if c.CsvName == "" {
-        log.V(0).Fatalf("CSV file name is missing")
+		log.V(0).Fatalf("CSV file name is missing")
 	}
 	log.V(0).Printf("Opening csv name:%v\n", c.CsvName)
 	csvFile, err := os.Open(c.CsvName)
@@ -296,7 +296,7 @@ func (c *sheet_config) dirSetup() error {
 	 *----------------------------------------------------------------*/
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := os.Mkdir(".makerNexus", 0777); err != nil {
-			return fmt.Errorf("error creating directory .makernexus")
+			return fmt.Errorf("error creating directory .makerNexus")
 		}
 	}
 	if err := os.Chdir(configPath); err != nil {

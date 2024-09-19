@@ -12,11 +12,12 @@ function run_waiverdump {
     python waiverdump.py
     RESULT=$?
     if [ $RESULT -eq 0 ]; then
-      return
+      return 0
     fi
     echo "waiverdump error:" $RESULT " Re-running program retry#" $n
     sleep 1m
   done
+  return -1
 }
 #---------------------------------------------
 #  Run reports once at start

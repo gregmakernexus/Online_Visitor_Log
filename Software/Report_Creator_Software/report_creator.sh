@@ -8,7 +8,15 @@
 function run_waiverdump {
   cd /$HOME/test
   source env/bin/activate
-  python waiverdump.py
+  for n in {1..3}; do
+    python waiverdump.py
+    RESULT=$?
+    if [ $RESULT -eq 0 ]; then
+      return
+    fi
+    echo "waiverdump error:" $RESULT " Re-running program retry#" $n
+    sleep 1m
+  done
 }
 #---------------------------------------------
 #  Run reports once at start

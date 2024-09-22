@@ -66,7 +66,9 @@ def main():
         # menu.click()
 
         menu = wait_till_found(driver, By.ID, "signedDocumentsNav")
-        menu.click()
+        btn1 = WebDriverWait(driver, 300).until(EC.element_to_be_clickable((By.ID, "signedDocumentsNav")))
+        driver.execute_script('arguments[0].scrollIntoView(false);', btn1)
+        btn1.click()
         print(" ")
     except Exception:
         traceback.print_exc()
@@ -76,7 +78,7 @@ def main():
     # --------------------------------------------------------------
     try:
         wait_till_found(driver, By.PARTIAL_LINK_TEXT, "Export Contacts")
-        btn2 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Export Contacts")))
+        btn2 = WebDriverWait(driver, 300).until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Export Contacts")))
         driver.execute_script('arguments[0].scrollIntoView(false);', btn2)
         btn2.click()
     except Exception:
@@ -87,7 +89,7 @@ def main():
     # --------------------------------------------------------------
     try:
         btn_xpath = "//div[@id='exportContact']//div[@class='actions']//div[@role='button']"
-        btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, btn_xpath)))
+        btn = WebDriverWait(driver, 300).until(EC.element_to_be_clickable((By.XPATH, btn_xpath)))
         driver.execute_script('arguments[0].scrollIntoView(false);', btn)
         btn.click()
     except Exception:
@@ -102,7 +104,7 @@ def main():
             # Re-save the config file with the name of the downloaded file
             os.chdir(os.path.join(home, ".makerNexus"))
             config['file'] = os.path.join(download, filename)  # make sure it is the absolute path
-            print(config)
+            # print(config)
             with open(".waiversign.json", 'w') as outfile:
                 json.dump(config, outfile)
             print("file successfully downloaded:", filename)

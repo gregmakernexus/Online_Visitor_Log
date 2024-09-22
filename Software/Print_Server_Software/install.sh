@@ -1,4 +1,21 @@
 #!/bin/bash
+#---------------------------------------------
+#  install program checks if the program needs to be 
+#  rebuilt.  If so, builds and moves it to $HOME/.bin
+#-----------------------------------------------
+function install_program {
+   source="${program_name}".go
+   sourcepath=${PWD}
+   if [[ ! -f "${source}" ]]; then
+     echo "${source}" is not in the Report_Creator_Software directory
+     exit 102
+   fi
+   echo building "${source}" 
+   go build "${source}"
+   cd "/${HOME}/.bin"
+   mv -f "${sourcepath}/${program_name}" "${program_name}"
+}
+
 #-------------------------------------------------
 # Get the CPU architecture (must be rasbian).
 # The cpu architecture changes over time, and the version
@@ -87,51 +104,50 @@ fi
 # Copy mp3 files to the music directory
 #---------------------------------------------------
 cd "$HOME/Music"
-sudo apt-get update
-sudo apt-get install libasound2-dev
-sudo apt-get install libudev-dev
+# sudo apt-get update
+# sudo apt-get install libasound2-dev
+# sudo apt-get install libudev-dev
+pkgs='libasound2-dev libudev-dev'
+install=false
+for pkg in $pkgs; do
+  status="$(dpkg-query -W --showformat='${db:Status-Status}' "$pkg" 2>&1)"
+  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+    install=true
+    break
+  fi
+done
+if "$install"; then
+  sudo apt-get update
+  sudo apt-get install $pkgs
+else
+  echo libasound2-dev and libudev-dev are already installed
+fi
 cp -f "$bash_path/start_me_up.mp3" start_me_up.mp3
 cp -f "$bash_path/Quartz_Alarm_Clock_Beeps.mp3" Quartz_Alarm_Clock_Beeps.mp3
 #-------------------------------------------------------
 #  Compile printserver.go
 #-------------------------------------------------------
 cd "$bash_path"/printserver
-if [ ! -f "printserver.go" ]; then
-   echo "printserver.go is not in the directory with install script"
-   exit 100
-fi
-echo "building printserver.go"
-go build printserver.go
+program_name="printserver"
+install_program
 #-------------------------------------------------------
 #  Compile daily_log.go
 #-------------------------------------------------------
 cd "$bash_path"/../Report_Creator_Software/daily_log
-if [ ! -f "daily_log.go" ]; then
-   echo "daily_log.go is not in the Report_Creator_Software directory"
-   exit 101
-fi
-echo "building daily_log.go"
-go build daily_log.go
+program_name="daily_log"
+install_program
 #-------------------------------------------------------
 #  Compile visitor_report.go
 #-------------------------------------------------------
 cd "$bash_path"/../Report_Creator_Software/visitor_report
-if [ ! -f "visitor_report.go" ]; then
-   echo "visitor_reportgo is not in the Report_Creator_Software directory"
-   exit 102
-fi
-echo "building visitor_report.go"
-go build visitor_report.go
+program_name="visitor_report"
+install_program
 #-------------------------------------------------------
 #  Compile waiver_report.go
 #-------------------------------------------------------
 cd "$bash_path"/../Report_Creator_Software/waiver_report
-if [ ! -f "waiver_report.go" ]; then
-   echo "waiver_report.go is not in the Report_Creator_Software directory"
-   exit 103
-fi
-echo "building waiver_report.go"
-go build waiver_report.go
+program_name="waiver_report"
+install_program
 #------------------------------------------------------
 # install test software including selenium, and a load
 # of python dependencies
@@ -154,10 +170,6 @@ cp -f "$bash_path/../Report_Creator_Software/waiver_report/waiverdump.py" waiver
 # copy files to .bin directory
 #----------------------------------------------------
 cd "$HOME/.bin"
-mv -f "$bash_path/printserver/printserver" printserver
-mv -f "$bash_path/../Report_Creator_Software/daily_log/daily_log" daily_log
-mv -f "$bash_path/../Report_Creator_Software/visitor_report/visitor_report" visitor_report
-mv -f "$bash_path/../Report_Creator_Software/waiver_report/waiver_report" waiver_report
 cp -f "$bash_path/../Report_Creator_Software/report_creator.sh" report_creator.sh
 cp -f "$bash_path/ovlregister.sh" ovlregister.sh
 cp -f "$bash_path/printserver/printserver.sh" printserver.sh
@@ -188,19 +200,9 @@ fi
 #  Compile printconfig.go and copy to .bin
 #-------------------------------------------------------
 cd "$bash_path"/printconfig
-if [ ! -f "printconfig.go" ]; then
-   echo "printconfig.go is not in the directory with install script"
-   exit 100
-fi
-echo "building printconfig.go"
-go build printconfig.go
-cd "$HOME/.bin"
-mv -f "$bash_path/printconfig/printconfig" printconfig
-if [[ $(ls) = *printconfig* ]]; then
-  echo "printconfig is installed"
-else
-  exit 101
-fi
+program_name="printconfig"
+install_program
+
 echo "Resetting label configuration filters in $HOME/.makerNexus/labelConfig.json"
 cd "$HOME/.makerNexus"
 rm labelConfig.json
@@ -278,5 +280,6 @@ else
   make
   sudo make install
 fi
+
 
  

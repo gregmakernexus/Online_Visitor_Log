@@ -73,7 +73,7 @@ func main() {
 		 * Wait here while nothing is printing
 		 *-----------------------------------------------------------*/
 		waitForPrinterOK()
-		time.Sleep(time.Second)
+		time.Sleep(5 * time.Second)
 	} // for infinite loop
 }
 func waitForPrinterToAppear() (err error) {

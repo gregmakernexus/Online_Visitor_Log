@@ -76,7 +76,7 @@ func main() {
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
-	lastRecordNumber, err := s.getLastRecordNumber(ctx, data)
+	lastRecordNumber, err := c.getLastRecordNumber(ctx, log, data)
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
@@ -283,7 +283,7 @@ func (c *visitor_config) getLastRecordNumber(ctx context.Context, log *debug.Deb
 	// There is no consistency check.
 	// Check if LastRecordNumber is numeric
 	if !regexp.MustCompile(`\d`).MatchString(data[end][col]) {
-		return "0", fmt.Errorf("Record Number is not numeric:%v", c.LastRecordNumber)
+		return "0", fmt.Errorf("Record Number is not numeric:%v", data[end][col])
 	}
 	return data[end][col], nil
 }

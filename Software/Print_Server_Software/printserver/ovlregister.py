@@ -33,15 +33,15 @@ def main():
                 ["Kid1",  "smith", "test@test.com", [camp,event]],
                 ["adult",  "smith", "adult@test.com", [classworkshop]],
 	            ["adult",  "moneybags", "adult@gmail.com", [event]],
-                ["Oliver", "Northwood", "oliver@fakemail.com", [forgotbadge]],
-	            ["Cara",  "Stoneburner", "cara@fakemail.com",[forgotbadge]],
+                ["Danielle", "Hollenbeck", "oliver@fakemail.com", [forgotbadge]],
+	            ["Kyle",  "Geenen", "cara@fakemail.com",[forgotbadge]],
 	            ["alsootfa",  "mohammed", "alsoofa@fakemail.com",[meetup]],
                 ["alsootfa",  "mohammed", "alsoofa@fakemail.com",[tour]],
                 ["alsootfa",  "mohammed", "alsoofa@fakemail.com",[guest]],
                 ["alsootfa",  "mohammed", "alsoofa@fakemail.com",[other]],
                 ["mickey",  "mouse", "mikey@fakemail.com",[forgotbadge,meetup]],
                 ["camp",  "meet-up", "visitor@fakemail.com",[camp,meetup]],
-                ["Oliver",  "Northwood", "eventAndMeetup@member.com",[event,meetup]],
+                ["James",  "Bell", "eventAndMeetup@member.com",[event,meetup]],
                ]
     
     for visitor in testData:

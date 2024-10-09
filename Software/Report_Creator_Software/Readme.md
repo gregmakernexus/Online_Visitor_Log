@@ -8,9 +8,10 @@ Online_Visitor_Log
     |- Report_Creator_Software
        |-- debug            debug logging package used by applications                        
        |-- sheet            google sheets client 
-       |-- mysql            manual installation of mysql client (for Raspbian 32-bit)
        |-- visitor_report   Application to download OVL database and write it to sheet
-       |-- waiver_report    Application to read a csv and write it to a google sheet. 
+       |-- waiver_report    Application to read a csv and write it to a google sheet.
+       |-- daily_log        Application to download todays OVL entries and write it to sheet 
+       |-- install.sh       Bash script that runs the install.sh script for everything
 
 ## visitor_report
 

@@ -79,10 +79,10 @@ func NewClientInfo(log *debug.DebugClient) (map[string][]string, error) {
 	 *  Read the clientinfo table for the last 6 months
 	 *-----------------------------------------------------*/
 	n := time.Now()
-	sixMonthsAgo := n.AddDate(0,-6,0)
+	sixMonthsAgo := n.AddDate(0, -6, 0)
 	querySixMonthsAgo := sixMonthsAgo.Format("20060102")
-	log.V(1).Printf("Six months ago:%v\n",querySixMonthsAgo)
-	r, err = db.Query("SELECT * FROM clientInfo WHERE dateLastSeen>"+querySixMonthsAgo)
+	log.V(1).Printf("Six months ago:%v\n", querySixMonthsAgo)
+	r, err = db.Query("SELECT * FROM clientInfo WHERE dateLastSeen>" + querySixMonthsAgo)
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
@@ -175,13 +175,13 @@ func (c *visitor_config) dirSetup() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	configPath := filepath.Join(home, ".makernexus")
+	configPath := filepath.Join(home, ".makerNexus")
 	/*----------------------------------------------------------------
 	 * if directory does not exist then create it
 	 *----------------------------------------------------------------*/
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		if err := os.Mkdir(".makernexus", 0777); err != nil {
-			return fmt.Errorf("error creating directory .makernexus")
+		if err := os.Mkdir(".makerNexus", 0777); err != nil {
+			return fmt.Errorf("error creating directory .makerNexus")
 		}
 	}
 	if err := os.Chdir(configPath); err != nil {

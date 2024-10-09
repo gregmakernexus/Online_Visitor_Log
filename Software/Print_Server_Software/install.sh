@@ -1,4 +1,21 @@
 #!/bin/bash
+#---------------------------------------------
+#  install program checks if the program needs to be 
+#  rebuilt.  If so, builds and moves it to $HOME/.bin
+#-----------------------------------------------
+function install_program {
+   source="${program_name}".go
+   sourcepath=${PWD}
+   if [[ ! -f "${source}" ]]; then
+     echo "${source}" is not in the Report_Creator_Software directory
+     exit 102
+   fi
+   echo building "${source}" 
+   go build "${source}"
+   cd "/${HOME}/.bin"
+   mv -f "${sourcepath}/${program_name}" "${program_name}"
+}
+
 #-------------------------------------------------
 # Get the CPU architecture (must be rasbian).
 # The cpu architecture changes over time, and the version
@@ -27,11 +44,11 @@ else
   set -e 
   cd "$HOME/Downloads"
   if [ "$ARCH" == aarch64 ] || [ "$ARCH" == arm64* ]; then
-    wget "https://dl.google.com/go/go1.21.6.linux-arm64.tar.gz"
-    sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
+    wget "https://dl.google.com/go/go1.22.5.linux-arm64.tar.gz"
+    sudo tar -C /usr/local -xzf go1.22.5.linux-arm64.tar.gz
   elif  [[ "$ARCH" == armv* ]]; then
-    wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
-    sudo tar -C /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
+    wget https://dl.google.com/go/go1.22.5.linux-armv6l.tar.gz
+    sudo tar -C /usr/local -xzf go1.22.5.linux-armv6l.tar.gz
   else
     echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
     exit 3
@@ -83,19 +100,54 @@ else
   source ~/.bashrc
   echo ".bin was added to your path."
 fi
+#----------------------------------------------------
+# Copy mp3 files to the music directory
+#---------------------------------------------------
+cd "$HOME/Music"
+# sudo apt-get update
+# sudo apt-get install libasound2-dev
+# sudo apt-get install libudev-dev
+pkgs='libasound2-dev libudev-dev'
+install=false
+for pkg in $pkgs; do
+  status="$(dpkg-query -W --showformat='${db:Status-Status}' "$pkg" 2>&1)"
+  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+    install=true
+    break
+  fi
+done
+if "$install"; then
+  sudo apt-get update
+  sudo apt-get install $pkgs
+else
+  echo libasound2-dev and libudev-dev are already installed
+fi
+cp -f "$bash_path/start_me_up.mp3" start_me_up.mp3
+cp -f "$bash_path/Quartz_Alarm_Clock_Beeps.mp3" Quartz_Alarm_Clock_Beeps.mp3
 #-------------------------------------------------------
-#  Compile printserver.go and copy to .bin
+#  Compile printserver.go
 #-------------------------------------------------------
 cd "$bash_path"/printserver
-if [ ! -f "printserver.go" ]; then
-   echo "printserver.go is not in the directory with install script"
-   exit 100
-fi
-sudo apt-get update
-sudo apt-get install libasound2-dev
-sudo apt-get install libudev-dev
-echo "building printserver.go"
-go build printserver.go
+program_name="printserver"
+install_program
+#-------------------------------------------------------
+#  Compile daily_log.go
+#-------------------------------------------------------
+cd "$bash_path"/../Report_Creator_Software/daily_log
+program_name="daily_log"
+install_program
+#-------------------------------------------------------
+#  Compile visitor_report.go
+#-------------------------------------------------------
+cd "$bash_path"/../Report_Creator_Software/visitor_report
+program_name="visitor_report"
+install_program
+#-------------------------------------------------------
+#  Compile waiver_report.go
+#-------------------------------------------------------
+cd "$bash_path"/../Report_Creator_Software/waiver_report
+program_name="waiver_report"
+install_program
 #------------------------------------------------------
 # install test software including selenium, and a load
 # of python dependencies
@@ -113,47 +165,47 @@ if [ ! -d "$HOME/test" ]; then
 fi
 cd ~/test
 cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
+cp -f "$bash_path/../Report_Creator_Software/waiver_report/waiverdump.py" waiverdump.py
 #---------------------------------------------------
 # copy files to .bin directory
 #----------------------------------------------------
 cd "$HOME/.bin"
-mv -f "$bash_path/printserver/printserver" printserver
+cp -f "$bash_path/../Report_Creator_Software/report_creator.sh" report_creator.sh
 cp -f "$bash_path/ovlregister.sh" ovlregister.sh
-cp -f "$bash_path/printserver.sh" printserver.sh
+cp -f "$bash_path/printserver/printserver.sh" printserver.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
 else
-  exit 102
+  exit 202
 fi
 if [[ $(ls) = *ovlregister.sh* ]]; then
   chmod +x ovlregister.sh
   echo "ovlregister.sh is installed"
 else
-  exit 103
+  exit 203
 fi
 if [[ $(ls) = *printserver.sh* ]]; then
   chmod +x printserver.sh
   echo "printserver.sh is installed"
 else
-  exit 104
+  exit 204
+fi
+if [[ $(ls) = *report_creator.sh* ]]; then
+  chmod +x report_creator.sh
+  echo "report_creator.sh is installed"
+else
+  exit 204
 fi
 #-------------------------------------------------------
 #  Compile printconfig.go and copy to .bin
 #-------------------------------------------------------
 cd "$bash_path"/printconfig
-if [ ! -f "printconfig.go" ]; then
-   echo "printconfig.go is not in the directory with install script"
-   exit 100
-fi
-echo "building printconfig.go"
-go build printconfig.go
-cd "$HOME/.bin"
-mv -f "$bash_path/printconfig/printconfig" printconfig
-if [[ $(ls) = *printconfig* ]]; then
-  echo "printconfig is installed"
-else
-  exit 101
-fi
+program_name="printconfig"
+install_program
+
+echo "Resetting label configuration filters in $HOME/.makerNexus/labelConfig.json"
+cd "$HOME/.makerNexus"
+rm labelConfig.json
 #-----------------------------------------------------
 #  copy the template files and logo to the Mylabels directory
 #------------------------------------------------------
@@ -166,6 +218,7 @@ cp -f "$bash_path/maker_nexus_logo.png" maker_nexus_logo.png
 cp -f "$bash_path/DYMO.glabels" DYMO.glabels
 cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
 cp -f "$bash_path/printer.glabels" printer.glabels
+
 #-----------------------------------------------------
 # Install Brother printer driver.  Set the media 2.4" diameter
 # If media is not set correctly, printer will not print
@@ -227,5 +280,6 @@ else
   make
   sudo make install
 fi
+
 
  

@@ -20,7 +20,7 @@ echo path:$bash_path
 # Install GO
 #-------------------------------------------------
 if type "go" > /dev/null; then
-  echo "go is installed"
+   echo "go is installed"
 else
   set +e 
   sudo rm -rf /usr/local/go  
@@ -31,7 +31,7 @@ else
     sudo tar -C /usr/local -xzf go1.21.6.linux-arm64.tar.gz
   elif  [[ "$ARCH" == armv* ]]; then
     wget https://dl.google.com/go/go1.21.6.linux-armv6l.tar.gz
-    sudo tar -c /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
+    sudo tar -C /usr/local -xzf go1.21.6.linux-armv6l.tar.gz
   else
     echo "This script is intended for a Raspberry PI.  Unknown architecture:$ARCH"
     exit 3
@@ -80,6 +80,7 @@ if [[ ":$PATH:" == *":$HOME/.bin:"* ]]; then
   echo ".bin is installed"
 else
   echo "export PATH=$HOME/.bin:$PATH" >> .bashrc
+  source ~/.bashrc
   echo ".bin was added to your path."
 fi
 #-------------------------------------------------------
@@ -90,12 +91,66 @@ if [ ! -f "printserver.go" ]; then
    echo "printserver.go is not in the directory with install script"
    exit 100
 fi
+sudo apt-get update
+sudo apt-get install libasound2-dev
+sudo apt-get install libudev-dev
 echo "building printserver.go"
 go build printserver.go
+#------------------------------------------------------
+# install test software including selenium, and a load
+# of python dependencies
+#-----------------------------------------------------
+cd
+if [ ! -d "$HOME/test" ]; then
+	mkdir ~/test
+  cd ~/test
+  sudo apt-get install chromium-chromedriver
+  cp -f "$bash_path/printserver/requirements.txt" requirements.txt
+  python3 -m venv env
+  source env/bin/activate 
+  pip install -r requirements.txt
+  echo "python environment built."
+fi
+cd ~/test
+cp -f "$bash_path/printserver/ovlregister.py" ovlregister.py
+#---------------------------------------------------
+# copy files to .bin directory
+#----------------------------------------------------
 cd "$HOME/.bin"
-cp -f "$bash_path/printserver/printserver" printserver
+mv -f "$bash_path/printserver/printserver" printserver
+cp -f "$bash_path/ovlregister.sh" ovlregister.sh
+cp -f "$bash_path/printserver.sh" printserver.sh
 if [[ $(ls) = *printserver* ]]; then
   echo "printserver is installed"
+else
+  exit 102
+fi
+if [[ $(ls) = *ovlregister.sh* ]]; then
+  chmod +x ovlregister.sh
+  echo "ovlregister.sh is installed"
+else
+  exit 103
+fi
+if [[ $(ls) = *printserver.sh* ]]; then
+  chmod +x printserver.sh
+  echo "printserver.sh is installed"
+else
+  exit 104
+fi
+#-------------------------------------------------------
+#  Compile printconfig.go and copy to .bin
+#-------------------------------------------------------
+cd "$bash_path"/printconfig
+if [ ! -f "printconfig.go" ]; then
+   echo "printconfig.go is not in the directory with install script"
+   exit 100
+fi
+echo "building printconfig.go"
+go build printconfig.go
+cd "$HOME/.bin"
+mv -f "$bash_path/printconfig/printconfig" printconfig
+if [[ $(ls) = *printconfig* ]]; then
+  echo "printconfig is installed"
 else
   exit 101
 fi
@@ -110,18 +165,23 @@ cd "$HOME/Mylabels"
 cp -f "$bash_path/maker_nexus_logo.png" maker_nexus_logo.png  
 cp -f "$bash_path/DYMO.glabels" DYMO.glabels
 cp -f "$bash_path/BROTHER.glabels" BROTHER.glabels
+cp -f "$bash_path/printer.glabels" printer.glabels
 #-----------------------------------------------------
-# Install Brother printer driver
+# Install Brother printer driver.  Set the media 2.4" diameter
+# If media is not set correctly, printer will not print
 #----------------------------------------------------
 cd "$HOME/Downloads"
 if [[ $(lpstat -a) = *QL-800* ]]; then
+  lpoptions -p QL-800 -o media=24Dia
+  lpoptions -p QL-800-1 -o media=24Dia
+  lpoptions -p QL-800-2 -o media=24Dia
   echo "QL-800 printer driver is installed"
 else
   if  [[ "$ARCH" == armv* ]]; then
     cd $bash_path
     echo Installing Brother Drivers
     rm -rf ql800*
-    # wget "https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=lpql800eus&os=10041&dlid=dlfp100534_000&flang=178&type3=10261"
+    wget https://download.brother.com/welcome/dlfp100534/ql800pdrv-2.1.4-0.armhf.deb
     sudo dpkg -i "ql800pdrv-2.1.4-0.armhf.deb"
     echo "To verify cups installation,open chrome.  Go to: http://localhost:631/printers"
   else

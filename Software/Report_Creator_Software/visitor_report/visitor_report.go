@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	// "encoding/csv"
@@ -32,7 +33,7 @@ var log *debug.DebugClient
 var data [][]string
 
 func main() {
-	fmt.Println("Visitor Log Application V1.0")
+	fmt.Println("Visitor Log Application V2.0")
 	ctx := context.Background()
 	flag.Parse()
 	var err error
@@ -69,16 +70,32 @@ func main() {
 	if err != nil {
 		log.V(0).Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
-	/*-----------------------------------------------------------------------------------
-	 * Get the sheet data. Extract the last recNum written to sheet.
-	 *----------------------------------------------------------------------------------*/
-	data, err := s.GetSheet(ctx, spreadsheetId, c.SheetName)
-	if err != nil {
-		log.V(0).Fatal(err)
-	}
-	lastRecordNumber, err := c.getLastRecordNumber(ctx, log, data)
-	if err != nil {
-		log.V(0).Fatal(err)
+	sheetID, err := s.GetSheetID(ctx, spreadsheetId, c.SheetName)
+	where := ""
+	switch {
+	case err == nil: // temp sheet exists.
+		/*-------------------------------------------------------------
+		 * Read the sheet
+		 *------------------------------------------------------------*/
+		log.V(1).Printf("Sheet exists:%v id:%v\n", c.SheetName, sheetID)
+		d, err := s.GetSheet(ctx, spreadsheetId, c.SheetName)
+		if err != nil {
+			log.V(0).Fatal(err)
+		}
+		/*--------------------------------------------------------------
+		 * If there is data in the table, including the column headers
+		 * get the last recNum written, otherwise read the whole table
+		 *--------------------------------------------------------------*/
+		if len(d) >= 2 {
+			lastRecordNumber := c.getLastRecordNumber(ctx, d)
+			where = "WHERE recNum > " + lastRecordNumber
+
+		}
+	case strings.Contains(err.Error(), "not found"):
+		if sheetID, err = s.AddSheet(ctx, spreadsheetId, c.SheetName); err != nil {
+			log.Fatalf("Error creating requested sheet. error:\n%v\n", err)
+		}
+		log.V(0).Printf("Added temp sheet:%v id:%v\n", c.SheetName, sheetID)
 	}
 	/*--------------------------------------------------------------
 	 * Open the database.  Parameters were collected in the config
@@ -95,7 +112,8 @@ func main() {
 	 *  Read the ovl_list table,  LastRecordNumber based recNum field of
 	 *  the last record in the sheet
 	 *-----------------------------------------------------*/
-	r, err := db.Query("SELECT * FROM ovl_visits WHERE recNum > " + lastRecordNumber)
+	log.V(0).Printf("Query: SELECT * FROM ovl_visits %v\n", where)
+	r, err := db.Query("SELECT * FROM ovl_visits " + where)
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
@@ -107,8 +125,9 @@ func main() {
 	/*----------------------------------------------------------
 	 * If previous sheet is empty then add the column headers
 	 *---------------------------------------------------------*/
-	if len(data) == 0 {
-		data = append(data, cols)
+	update := make([][]string, 0)
+	if where == "" {
+		update = append(update, cols)
 		fmt.Println(cols)
 	}
 	/*----------------------------------------------------------
@@ -135,15 +154,17 @@ func main() {
 				result[i] = string(raw)
 			}
 		}
-		data = append(data, result)
+		update = append(update, result)
 	}
-	log.V(2).Println("resulting 2d slice:")
-	log.V(2).Println(data)
+	log.V(2).Printf("Appending %v records to %v\n", len(update), c.SheetName)
+	for _, line := range update {
+		log.V(2).Println(line)
+	}
 	/*---------------------------------------------------------------
 	 * Write the slice to the google sheet named "Log"
 	 *--------------------------------------------------------------*/
-	if _, err = s.PutSheet(ctx, spreadsheetId, c.SheetName, data); err != nil {
-		log.Fatalf("PutSheet error:%v", err)
+	if _, err = s.AppendSheet(ctx, spreadsheetId, c.SheetName, update); err != nil {
+		log.Fatalf("AppendSheet error:%v", err)
 	}
 
 }
@@ -263,9 +284,9 @@ func (c *visitor_config) build(filename string) error {
 }
 
 // Write the visitor_config file in the .makernexus directory.  Update the LastRecordNumber:
-func (c *visitor_config) getLastRecordNumber(ctx context.Context, log *debug.DebugClient, data [][]string) (string, error) {
+func (c *visitor_config) getLastRecordNumber(ctx context.Context, data [][]string) string {
 	if len(data) <= 2 {
-		return "0", fmt.Errorf("Data is empty")
+		return "0"
 	}
 	end := len(data) - 1
 	// Find the recNum Column
@@ -277,13 +298,13 @@ func (c *visitor_config) getLastRecordNumber(ctx context.Context, log *debug.Deb
 		}
 	}
 	if col == -1 {
-		return "0", fmt.Errorf("Missing recNum Column")
+		return "0"
 	}
 	// Store the LastRecordNumber.  Can't assume it matches the length of sheet
 	// There is no consistency check.
 	// Check if LastRecordNumber is numeric
 	if !regexp.MustCompile(`\d`).MatchString(data[end][col]) {
-		return "0", fmt.Errorf("Record Number is not numeric:%v", data[end][col])
+		return "0"
 	}
-	return data[end][col], nil
+	return data[end][col]
 }

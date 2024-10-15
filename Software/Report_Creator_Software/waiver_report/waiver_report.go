@@ -91,13 +91,13 @@ func main() {
 	 * sheet.
 	 *-------------------------------------------------------------------*/
 	s.AddSheet(ctx, spreadsheetId, "iwlwem987aad_9712")
-	bogusID, _, _ := s.GetSheetID(ctx, spreadsheetId, "iwlwem987aad_9712")
+	bogusID, _ := s.GetSheetID(ctx, spreadsheetId, "iwlwem987aad_9712")
 	/*---------------------------------------------------------------------
 	 * Try to find the temporary sheet.  Make sure it is empty (delete/add)
 	 *--------------------------------------------------------------------*/
 	var tempName string = "temp_456123_"
 	var tempID int64
-	tempID, _, err = s.GetSheetID(ctx, spreadsheetId, tempName)
+	tempID, err = s.GetSheetID(ctx, spreadsheetId, tempName)
 	switch {
 	case err == nil: // temp sheet exists.  delete and add to reset
 		log.V(1).Printf("Aquired Sheet:%v id:%v\n", sheetName, tempID)
@@ -138,7 +138,7 @@ func main() {
 	/*---------------------------------------------------------------
 	 * Write the slice to the google sheet named "temp"
 	 *--------------------------------------------------------------*/
-	if tempID, err = s.PutSheet(ctx, spreadsheetId, tempName, data); err != nil {
+	if tempID, err = s.AppendSheet(ctx, spreadsheetId, tempName, data); err != nil {
 		log.Fatalf("PutSheet error:%v", err)
 	}
 	/*---------------------------------------------------------------
@@ -146,8 +146,8 @@ func main() {
 	 * name, as long as it's unique.  If it exists delete it.
 	 *---------------------------------------------------------------*/
 	var sheetID int64
-	var actualSheetName string
-	sheetID, actualSheetName, err = s.GetSheetID(ctx, spreadsheetId, c.SheetName)
+	var actualSheetName string = c.SheetName
+	sheetID, err = s.GetSheetID(ctx, spreadsheetId, c.SheetName)
 	switch {
 	case err == nil: // temp sheet exists.  delete and add to reset
 		log.V(1).Printf("Aquired Sheet:%v id:%v\n", sheetName, sheetID)

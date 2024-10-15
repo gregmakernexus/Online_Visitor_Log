@@ -20,12 +20,6 @@ function run_waiverdump {
   return -1
 }
 #---------------------------------------------
-#  Run reports once at start
-#--------------------------------------------
-visitor_report
-run_waiverdump
-waiver_report
-#---------------------------------------------
 #  Main loop
 #--------------------------------------------
 while true; do
@@ -34,19 +28,8 @@ while true; do
   # if the hour is 0 then removing leading zeroes creates a null
   if [[ ! -z "$hour" && "$hour" -eq "2" ]]; then
     echo 'running programs at:' $hour
-    visitor_report
     run_waiverdump
     waiver_report
-    sleep 60m
-    continue
   fi
-  if [[ ! -z "$hour" && "$hour" -ge "1" && "$hour" -le "8" ]]; then
-    echo 'Makernexus is closed.  hour:' $hour
-    sleep 60m
-    continue
-  fi
-
-  daily_log
-  sleep 5m
-  
+  sleep 60m  
 done

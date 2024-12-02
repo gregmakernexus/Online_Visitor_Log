@@ -280,7 +280,7 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 				reasons[r] = filterList[r]
 				log.V(1).Printf("Reasons:%v\n", reasons)
 			case len(d) > 1:
-				log.V(1).Printf("Multiple Reason key provided:%v\n", r)
+				log.V(1).Printf("Multiple Reason key provided:%v\n", d)
 				for i, r := range d {
 					r = strings.Trim(r, " ")
 					if _, exist := filterList[r]; !exist {

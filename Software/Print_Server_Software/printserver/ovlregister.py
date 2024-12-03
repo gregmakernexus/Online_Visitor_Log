@@ -28,6 +28,7 @@ def main():
     
     testData = [
                 ["kelly","Yamanishi","kelly.yamanishi@comcast.net",[forgotbadge,tour]],
+                ["No","Reason","no.reason@yahoo.com",[]],
                 ["greg","Yamanishi","greg.yamanishi@gmail.com",[volunteer,event]],
                 ["MyNameisReallyLong",  "lastnameistoolong", "MyNameisReallyLong@fakemail.com",[tour]],
                 ["Kid1",  "smith", "test@test.com", [camp,event]],
@@ -52,6 +53,7 @@ def main():
         driver.find_element(By.ID, "mainNameFirst").send_keys(visitor[0])
         driver.find_element(By.ID, "mainNameLast").send_keys(visitor[1])
         driver.find_element(By.ID, "email").send_keys(visitor[2])
+        print("Name:",visitor[0],visitor[1])
         for d in visitor[3]:
             print("Digit:",d)
             if d == tour:

@@ -78,6 +78,7 @@ type LabelClient struct {
 var clients map[string][]string
 
 var filterList = map[string]string{
+	"None%20given":    "",
 	"classOrworkshop": "Class",
 	"makernexusevent": "Event",
 	"camp":            "Kids Camp",
@@ -85,7 +86,7 @@ var filterList = map[string]string{
 	"forgotbadge":     "Forgot Badge",
 	"guest":           "Guest",
 	"tour":            "TOUR",
-	"other":           "Visitor",
+	"other":           "Other",
 	"meetup":          "Meet-Up",
 }
 
@@ -264,12 +265,33 @@ func (l *LabelClient) AddToLabelQueue(info Visitor) error {
 			temp = strings.Replace(temp, "${nameLast}", data.(string), -1)
 			last = data.(string)
 		case "visitReason":
-			for _, r := range strings.Split(data.(string), "|") {
-				r = strings.Trim(r, " ")
-				log.V(1).Printf("Adding Reason key:%v data:%v\n", r, filterList[r])
+			d := strings.Split(data.(string), "|")
+			switch {
+			case len(d) == 0:
+				reasons["None%20given"] = ""
+				log.V(1).Printf("Empty reason provided.  Setting to empty\n")
+			case len(d) == 1:
+				r := strings.Trim(d[0], " ")
+				log.V(1).Printf("One Reason key provided:%v\n", r)
+				if _, exist := filterList[r]; !exist {
+					log.V(1).Printf("Unknown/unexpected Reason key:%v.  Ignoring\n", r)
+					continue
+				}
 				reasons[r] = filterList[r]
+				log.V(1).Printf("Reasons:%v\n", reasons)
+			case len(d) > 1:
+				log.V(1).Printf("Multiple Reason key provided:%v\n", d)
+				for i, r := range d {
+					r = strings.Trim(r, " ")
+					if _, exist := filterList[r]; !exist {
+						log.V(1).Printf("#%v Unknown/unexpected Reason key:%v.  Ignoring\n", i, r)
+						continue
+					}
+					log.V(1).Printf("#%v Adding Reason key:%v displayed reason:%v\n", i, r, filterList[r])
+					reasons[r] = filterList[r]
+				}
+				log.V(1).Printf("Reasons:%v\n", reasons)
 			}
-			log.V(1).Printf("Reasons:%v\n", reasons)
 		default:
 			dataType := fmt.Sprintf("%T", data)
 			switch dataType {

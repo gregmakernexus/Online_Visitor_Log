@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"example.com/debug"
 	"google.golang.org/api/option"
@@ -55,40 +54,36 @@ func (c *SheetClient) ChangeTitle(ctx context.Context, spreadsheetID string, spr
 }
 
 // GetSheetNames returns sheet name list.
-func (c *SheetClient) GetSheetID(ctx context.Context, spreadsheetID, sheetName string) (int64, string, error) {
+func (c *SheetClient) GetSheetID(ctx context.Context, spreadsheetID, sheetName string) (int64, error) {
 	resp, err := c.srv.Spreadsheets.Get(spreadsheetID).Context(ctx).Do()
 	if err != nil {
-		return 0, "", fmt.Errorf("unable to retrieve data from spreadsheet: %v", err)
+		return 0, fmt.Errorf("unable to retrieve data from spreadsheet: %v", err)
 	}
-	count := 0
-	sheet := new(sheets.Sheet)
 	for i, s := range resp.Sheets {
-		if strings.Contains(s.Properties.Title, sheetName) {
-			count++
-			if count > 1 {
-				return 0, "", fmt.Errorf("multiple sheets match name, make pattern unique")
-			}
-			log.V(1).Printf("%v Sheet Name:%v ID:%v\n", i, s.Properties.Title, s.Properties.SheetId)
-			sheet = s
+		log.V(1).Printf("%v Sheet Name:%v ID:%v\n", i, s.Properties.Title, s.Properties.SheetId)
+		if s.Properties.Title == sheetName {
+			log.V(1).Printf("Found sheet:%v\n", sheetName)
+			return s.Properties.SheetId, nil
 		}
 	}
-	if count == 0 {
-		return 0, "", fmt.Errorf("sheet not found:%v", sheetName)
-	}
-	return sheet.Properties.SheetId, sheet.Properties.Title, err
+	return 0, fmt.Errorf("sheet not found:%v", sheetName)
 }
 
 // GetSheet returns a Sheet in the form of a 2d slice.
 func (c *SheetClient) GetSheet(ctx context.Context, spreadsheetID, sheetName string) ([][]string, error) {
+	var data [][]string
 	resp, err := c.srv.Spreadsheets.Values.Get(spreadsheetID, sheetName).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve data from sheet: %v", err)
+	}
+	if len(resp.Values) == 0 {
+		return data, nil
 	}
 	var dataLength int = len(resp.Values[0])
 	log.V(1).Println("header:")
 	log.V(1).Println(resp.Values[0])
 	log.V(1).Println("width of table:", dataLength)
-	var data [][]string
+
 	for _, r := range resp.Values {
 		row := make([]string, dataLength)
 		for j, cell := range r {
@@ -101,7 +96,7 @@ func (c *SheetClient) GetSheet(ctx context.Context, spreadsheetID, sheetName str
 
 // PutSheet returns a Sheet.  Inputs a slice and write it to a sheet.
 // Note: writing to the sheet will change the sheet id.
-func (c *SheetClient) PutSheet(ctx context.Context, spreadsheetID, sheetName string, putData [][]string) (sheetID int64, err error) {
+func (c *SheetClient) AppendSheet(ctx context.Context, spreadsheetID, sheetName string, putData [][]string) (sheetID int64, err error) {
 	// The sheet api requires the data be loaded into a ValueRange structure.
 	// ValueRange.Values is a interface{}, and can be loaded with append
 	// var appendData *sheets.ValueRange
@@ -124,7 +119,7 @@ func (c *SheetClient) PutSheet(ctx context.Context, spreadsheetID, sheetName str
 		return 0, fmt.Errorf("append error: %v", err)
 	}
 	log.V(1).Printf("appendResp:%v\n", appendResp)
-	sheetID, _, err = c.GetSheetID(ctx, spreadsheetID, sheetName)
+	sheetID, err = c.GetSheetID(ctx, spreadsheetID, sheetName)
 	if err != nil {
 		return 0, fmt.Errorf("missing sheet after append to %v", sheetName)
 	}
@@ -147,7 +142,7 @@ func (c *SheetClient) AddSheet(ctx context.Context, spreadsheetID, sheetName str
 	if err != nil {
 		return 0, err
 	}
-	sheetID, _, err := c.GetSheetID(ctx, spreadsheetID, sheetName)
+	sheetID, err := c.GetSheetID(ctx, spreadsheetID, sheetName)
 	if err != nil {
 		return 0, fmt.Errorf("missing sheet after append to %v", sheetName)
 	}
@@ -171,7 +166,7 @@ func (c *SheetClient) AddHiddenSheet(ctx context.Context, spreadsheetID, sheetNa
 	if err != nil {
 		return 0, err
 	}
-	sheetID, _, err := c.GetSheetID(ctx, spreadsheetID, sheetName)
+	sheetID, err := c.GetSheetID(ctx, spreadsheetID, sheetName)
 	if err != nil {
 		return 0, fmt.Errorf("missing sheet after append to %v", sheetName)
 	}

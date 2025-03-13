@@ -6,13 +6,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	// "encoding/csv"
 	"flag"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 
 	"example.com/debug"
 	"example.com/sheet"
@@ -32,7 +33,7 @@ var log *debug.DebugClient
 var data [][]string
 
 func main() {
-	fmt.Println("Visitor Log Application V1.0")
+	fmt.Println("Visitor Log Application V2.0")
 	ctx := context.Background()
 	flag.Parse()
 	var err error
@@ -41,7 +42,7 @@ func main() {
 	if *clear {
 		clearConfig()
 	}
-	c, err := initialize(ctx, log)
+	c, err := readVisitorConfig(ctx, log)
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
@@ -67,39 +68,34 @@ func main() {
 	 *------------------------------------------------------------------------------------------*/
 	s, err := sheet.NewSheetClient(ctx, log, client)
 	if err != nil {
-		log.V(0).Fatalf("sheet2csv Unable to retrieve Sheets client: %v", err)
+		log.V(0).Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
-	/*---------------------------------------------------------------------
-	 * Add a hidden sheet so we can delete without worry of being the last
-	 * sheet.  Will get deleted if read is successful.
-	 *-------------------------------------------------------------------*/
-	s.AddSheet(ctx, spreadsheetId, "iwlwem987aad_9712")
-	bogusID, _, _ := s.GetSheetID(ctx, spreadsheetId, "iwlwem987aad_9712")
-	defer s.DeleteSheet(ctx, spreadsheetId, bogusID)
-	/*---------------------------------------------------------------------
-	 * Try to find the temporary sheet.  Make sure it is empty (delete/add)
-	 *--------------------------------------------------------------------*/
-	var tempName string = "temp_456123_" // made up name.
-	var tempID int64
-	tempID, _, err = s.GetSheetID(ctx, spreadsheetId, tempName)
+	sheetID, err := s.GetSheetID(ctx, spreadsheetId, c.SheetName)
+	where := ""
 	switch {
-	case err == nil: // temp sheet exists.  delete and add to reset
-		log.V(1).Printf("Aquired Sheet:%v id:%v\n", c.SheetName, tempID)
-		if err = s.DeleteSheet(ctx, spreadsheetId, tempID); err != nil {
-			log.Fatalf("Error deleting temp file. error:\n%v\n", err)
+	case err == nil: // temp sheet exists.
+		/*-------------------------------------------------------------
+		 * Read the sheet
+		 *------------------------------------------------------------*/
+		log.V(1).Printf("Sheet exists:%v id:%v\n", c.SheetName, sheetID)
+		d, err := s.GetSheet(ctx, spreadsheetId, c.SheetName)
+		if err != nil {
+			log.V(0).Fatal(err)
 		}
-		log.V(1).Printf("Deleted name:%v id:%v\n", tempName, tempID)
-		if tempID, err = s.AddSheet(ctx, spreadsheetId, tempName); err != nil {
-			log.V(0).Fatalf("Error creating requested sheet. error:%v.\n", err)
+		/*--------------------------------------------------------------
+		 * If there is data in the table, including the column headers
+		 * get the last recNum written, otherwise read the whole table
+		 *--------------------------------------------------------------*/
+		if len(d) >= 2 {
+			lastRecordNumber := c.getLastRecordNumber(ctx, d)
+			where = "WHERE recNum > " + lastRecordNumber
+
 		}
-		log.V(1).Printf("Re-added temp sheet:%v id:%v\n", tempName, tempID)
 	case strings.Contains(err.Error(), "not found"):
-		if tempID, err = s.AddSheet(ctx, spreadsheetId, tempName); err != nil {
+		if sheetID, err = s.AddSheet(ctx, spreadsheetId, c.SheetName); err != nil {
 			log.Fatalf("Error creating requested sheet. error:\n%v\n", err)
 		}
-		log.V(1).Printf("Added temp sheet:%v id:%v\n", tempName, tempID)
-	case strings.Contains(err.Error(), "multiple"):
-		log.V(0).Fatalf("Multipe sheets include the temp name:%v.  Delete one.\n", tempName)
+		log.V(0).Printf("Added temp sheet:%v id:%v\n", c.SheetName, sheetID)
 	}
 	/*--------------------------------------------------------------
 	 * Open the database.  Parameters were collected in the config
@@ -112,23 +108,12 @@ func main() {
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
-	/*---------------------------------------------------------------
-	 * Get list of tables in the database.  (not necessary for this app)
-	 *--------------------------------------------------------------*/
-	log.V(0).Printf("db open complete%v\n", db)
-	r, err := db.Query("SHOW TABLES")
-	if err != nil {
-		log.V(0).Fatal(err)
-	}
-	var table string
-	for r.Next() {
-		r.Scan(&table)
-		fmt.Println(table)
-	}
 	/*------------------------------------------------------
-	 *  Read the ovl_list table.
+	 *  Read the ovl_list table,  LastRecordNumber based recNum field of
+	 *  the last record in the sheet
 	 *-----------------------------------------------------*/
-	r, err = db.Query("SELECT * FROM ovl_visits")
+	log.V(0).Printf("Query: SELECT * FROM ovl_visits %v\n", where)
+	r, err := db.Query("SELECT * FROM ovl_visits " + where)
 	if err != nil {
 		log.V(0).Fatal(err)
 	}
@@ -138,11 +123,16 @@ func main() {
 		return
 	}
 	/*----------------------------------------------------------
+	 * If previous sheet is empty then add the column headers
+	 *---------------------------------------------------------*/
+	update := make([][]string, 0)
+	if where == "" {
+		update = append(update, cols)
+		fmt.Println(cols)
+	}
+	/*----------------------------------------------------------
 	 * Convert the object returned from db to a 2d slice.
 	 *---------------------------------------------------------*/
-	data = make([][]string, 0)
-	data = append(data, cols)
-	fmt.Println(cols)
 	// Result is your slice string.
 	rawResult := make([][]byte, len(cols))
 	dest := make([]interface{}, len(cols)) // A temporary interface{} slice
@@ -164,43 +154,19 @@ func main() {
 				result[i] = string(raw)
 			}
 		}
-		data = append(data, result)
+		update = append(update, result)
 	}
-	log.V(2).Println("resulting 2d slice:")
-	log.V(2).Println(data)
+	log.V(2).Printf("Appending %v records to %v\n", len(update), c.SheetName)
+	for _, line := range update {
+		log.V(2).Println(line)
+	}
 	/*---------------------------------------------------------------
-	 * Write the slice to the google sheet named "temp_456123_"
+	 * Write the slice to the google sheet named "Log"
 	 *--------------------------------------------------------------*/
-	if tempID, err = s.PutSheet(ctx, spreadsheetId, tempName, data); err != nil {
-		log.Fatalf("PutSheet error:%v", err)
+	if _, err = s.AppendSheet(ctx, spreadsheetId, c.SheetName, update); err != nil {
+		log.Fatalf("AppendSheet error:%v", err)
 	}
-	/*---------------------------------------------------------------
-	 * See if the sheet exists.  Sheetname can be a subset of the total
-	 * name, as long as it's unique.  If it exists delete it and re-rename.
-	 *---------------------------------------------------------------*/
-	var sheetID int64
-	var actualSheetName string
-	sheetID, actualSheetName, err = s.GetSheetID(ctx, spreadsheetId, c.SheetName)
-	switch {
-	case err == nil: // temp sheet exists.  delete and add to reset
-		log.V(1).Printf("Aquired Sheet:%v id:%v\n", c.SheetName, sheetID)
-		log.V(1).Printf("Deleting name:temp id:%v\n", sheetID)
-		if err = s.DeleteSheet(ctx, spreadsheetId, sheetID); err != nil {
-			log.Fatalf("Error deleting temp file. error:\n%v\n", err)
-		}
-	case strings.Contains(err.Error(), "not found"):
-		actualSheetName = c.SheetName
-	case strings.Contains(err.Error(), "multiple"):
-		log.V(0).Fatalf("Multipe sheets include the temp name:%v.  Delete one.\n", tempName)
-	}
-	log.V(0).Printf("Re-naming temp sheet.  name:%v id:%v\n", actualSheetName, tempID)
-	if err = s.RenameSheet(ctx, spreadsheetId, actualSheetName, tempID); err != nil {
-		log.V(0).Fatalf("Error creating requested sheet. error:\n%v\n", err)
-	}
-	/*-------------------------------------------------------------------
-	 * clean up the fake sheet we made so we can delete the last sheet
-	 *-----------------------------------------------------------------*/
-	s.DeleteSheet(ctx, spreadsheetId, bogusID)
+
 }
 
 type visitor_config struct {
@@ -212,11 +178,11 @@ type visitor_config struct {
 	SheetName        string `json:"Sheet"`
 }
 
-// initialize the configuation information.  Includes:
+// Read the visitor_config file in the .makernexus directory.  Includes:
 // 1. Create directories
 // 2. If config does not exist, collect config info via cli.  Store to disk.
 // 3. Read it back in.  Return *visitor_config
-func initialize(ctx context.Context, log *debug.DebugClient) (*visitor_config, error) {
+func readVisitorConfig(ctx context.Context, log *debug.DebugClient) (*visitor_config, error) {
 	// Read config. if not there create it
 	c := new(visitor_config)
 	if err := c.dirSetup(); err != nil {
@@ -315,4 +281,30 @@ func (c *visitor_config) build(filename string) error {
 		return err
 	}
 	return nil
+}
+
+// Write the visitor_config file in the .makernexus directory.  Update the LastRecordNumber:
+func (c *visitor_config) getLastRecordNumber(ctx context.Context, data [][]string) string {
+	if len(data) <= 2 {
+		return "0"
+	}
+	end := len(data) - 1
+	// Find the recNum Column
+	columns := data[0]
+	col := -1
+	for i, column := range columns {
+		if column == "recNum" {
+			col = i
+		}
+	}
+	if col == -1 {
+		return "0"
+	}
+	// Store the LastRecordNumber.  Can't assume it matches the length of sheet
+	// There is no consistency check.
+	// Check if LastRecordNumber is numeric
+	if !regexp.MustCompile(`\d`).MatchString(data[end][col]) {
+		return "0"
+	}
+	return data[end][col]
 }

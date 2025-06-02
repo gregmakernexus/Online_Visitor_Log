@@ -37,7 +37,6 @@ func main() {
 	var err error
 
 	log = debug.NewLogClient(*logLevel)
-	l = label.NewLabelClient(log, *dbURL)
 
 	// Print program banners
 	log.V(0).Println("Print Server v2.00.00  Initialized.  Hit control-c to exit.")
